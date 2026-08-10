@@ -1,0 +1,37 @@
+/* src/assets/main.css */
+
+:root {
+  /* Paleta ta de culori din imagine */
+  --verde-inchis: #8FAF0F;
+  --roz-deschis: #F5BACE;
+  --albastru-pastel: #A9C8FE;
+  --roz-inchis: #F088BB;
+  --crem-fundal: #F5FCD8;
+  --verde-deschis: #BDDB45;
+} /* <--- ACEASTA ESTE ACOLADA CARE LIPSEA! */
+
+/* Setări generale pentru a face site-ul să arate curat */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: var(--crem-fundal); /* Am folosit cremul ca fundal pentru pagini */
+  color: #333333; /* Un gri închis pentru text, ca să fie lizibil */
+}
+
+/* Un stil global pentru butoanele principale */
+.btn-principal {
+  background-color: var(--verde-inchis);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.btn-principal:hover {
+  background-color: var(--verde-deschis);
+  color: #333; /* Schimbăm culoarea textului la hover ca să se vadă bine pe verde deschis */
+}
