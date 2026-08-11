@@ -32,7 +32,9 @@
           <p v-if="eroareTrimitere" class="text-eroare">Te rugăm să îndeplinești toate cerințele parolei!</p>
         </div>
         
-        <button type="submit" class="btn-mare">Înregistrează-te</button>
+        <button type="submit" class="btn-mare" :disabled="seIncarca">
+          {{ seIncarca ? 'Se trimite...' : 'Înregistrează-te' }}
+        </button>
       </form>
 
       <div class="linkuri-utile">
@@ -45,16 +47,15 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import axios from 'axios' // <-- AM ADĂUGAT AXIOS
 
 const router = useRouter()
 const username = ref('')
 const email = ref('')
 const parola = ref('')
 const eroareTrimitere = ref(false)
-const eroareEmail = ref('') // Variabilă nouă pentru erorile de email
-
-// Simulam baza de date (pentru test). Aici vei pune mai târziu verificarea din backend.
-const emailuriExistenteBazaDeDate = ['test@exemplu.com', 'salut@ierbarel.ro']
+const eroareEmail = ref('')
+const seIncarca = ref(false) // Adăugat pentru a bloca butonul pe durata încărcării
 
 const reguliParola = computed(() => {
   const p = parola.value
@@ -69,42 +70,53 @@ const reguliParola = computed(() => {
 
 const parolaEsteValida = computed(() => reguliParola.value.every(regula => regula.esteBifata))
 
-const gestioneazaInregistrarea = () => {
-  eroareEmail.value = '' // Resetăm eroarea de email
+const gestioneazaInregistrarea = async () => {
+  eroareEmail.value = '' 
   eroareTrimitere.value = false
 
-  // 1. Verificare: Este un "hacker" care încearcă să se înregistreze ca admin?
+  // 1. Verificare Frontend: Este un "hacker" care încearcă să se înregistreze ca admin?
   if (email.value.includes('@admin')) {
     eroareEmail.value = 'Nu poți folosi "@admin". Această adresă este rezervată!'
     return
   }
 
-  // 2. Verificare: Email-ul există deja în "baza de date"?
-  if (emailuriExistenteBazaDeDate.includes(email.value)) {
-    eroareEmail.value = 'Acest email este deja asociat unui cont!'
-    return
-  }
-
-  // 3. Verificăm parola
+  // 2. Verificăm parola în Frontend
   if (!parolaEsteValida.value) {
     eroareTrimitere.value = true
     return
   }
 
-  // Dacă ajungem aici, totul e perfect!
-  console.log('Trimit spre Spring Boot:', { username: username.value, email: email.value })
-  router.push('/login') // Îl trimitem la login cu succes
+  // 3. Trimitem cererea către Backend-ul real (Spring Boot)
+  seIncarca.value = true
+  try {
+    const raspuns = await axios.post('http://localhost:8080/api/auth/register', {
+      username: username.value,
+      email: email.value,
+      password: parola.value // <-- Aici mapăm variabila 'parola' pe cheia 'password' cerută de Java
+    })
+
+    console.log('Succes:', raspuns.data.mesaj)
+    router.push('/login') // Trimitem la login după o înregistrare cu succes
+
+  } catch (eroare) {
+    console.error("Eroare la înregistrare:", eroare)
+    // Dacă Spring Boot returnează o eroare (ex: email-ul există deja)
+    if (eroare.response && eroare.response.data && eroare.response.data.mesaj) {
+      eroareEmail.value = eroare.response.data.mesaj
+    } else {
+      eroareEmail.value = 'Eroare la conectarea cu serverul.'
+    }
+  } finally {
+    seIncarca.value = false
+  }
 }
 
 const mergiLaLogin = () => router.push('/login')
 </script>
 
 <style scoped>
-/* Păstrează CSS-ul tău anterior aici, dar adaugă clasa de mai jos pentru eroare email */
 .text-stanga { text-align: left; margin-bottom: 0; }
 .text-eroare { color: #e74c3c; font-size: 0.85rem; font-weight: bold; margin-top: 5px; text-align: center; }
-
-/* Restul claselor: page-wrapper, glass-card, input-group, etc. din codul precedent */
 .page-wrapper { display: flex; justify-content: center; align-items: center; min-height: 100vh; }
 .glass-card { background: rgba(255, 255, 255, 0.9); padding: 2.5rem; border-radius: 15px; border: 3px solid var(--verde-deschis); width: 100%; max-width: 400px; box-shadow: 0 8px 20px rgba(0,0,0,0.05); }
 .titlu { color: var(--verde-inchis); text-align: center; margin-bottom: 2rem; }
@@ -120,7 +132,8 @@ const mergiLaLogin = () => router.push('/login')
 .cerinta.indeplinita { color: var(--verde-inchis); font-weight: 500; }
 .cerinta.indeplinita .iconita-frunza { filter: grayscale(0%) opacity(100%); }
 .btn-mare { background-color: var(--verde-inchis); color: white; border: none; padding: 12px; border-radius: 8px; font-size: 1.1rem; cursor: pointer; font-weight: bold; margin-top: 10px; transition: 0.3s; }
-.btn-mare:hover { background-color: var(--verde-deschis); color: #333; }
+.btn-mare:hover:not(:disabled) { background-color: var(--verde-deschis); color: #333; }
+.btn-mare:disabled { background-color: #ccc; cursor: not-allowed; }
 .linkuri-utile { margin-top: 1.5rem; text-align: center; font-size: 0.9rem; }
 .link-verde { color: var(--verde-inchis); font-weight: bold; text-decoration: none; }
 </style>

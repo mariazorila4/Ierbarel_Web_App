@@ -1,20 +1,25 @@
 package com.zmc.ierbar_web_app.controllers;
 
-import com.zmc.ierbar_web_app.models.user.General;
-import com.zmc.ierbar_web_app.repositories.UserRepository;
-import com.zmc.ierbar_web_app.security.JwtUtil;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.*;
-
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.zmc.ierbar_web_app.models.user.General;
+import com.zmc.ierbar_web_app.models.user.TipUser;
+import com.zmc.ierbar_web_app.repositories.UserRepository;
+import com.zmc.ierbar_web_app.security.JwtUtil;
+
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins="*")
+@CrossOrigin(origins={"http://localhost:5173", "http://127.0.0.1:5173"})
 public class AuthController{
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -36,8 +41,9 @@ public class AuthController{
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("mesaj", "Emsilul exista deja!"));
         }
 
+        TipUser tipUser=TipUser.GENERAL;
         String parolaCriptata=passwordEncoder.encode(parolaNecriptata);
-        userRepository.salveazaUserNou(username, email, parolaCriptata);
+        userRepository.salveazaUserNou(username, email, parolaCriptata, tipUser);
 
         return ResponseEntity.ok(Map.of("mesaj", "Cont creat cu succes!"));
     }

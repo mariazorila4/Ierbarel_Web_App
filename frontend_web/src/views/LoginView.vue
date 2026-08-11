@@ -13,18 +13,17 @@
           <label>Parolă</label>
           <input type="password" v-model="parola" placeholder="********" required />
         </div>
+
+        <!-- Afișăm un mesaj de eroare dacă logarea eșuează -->
+        <p v-if="mesajEroare" class="eroare-text">{{ mesajEroare }}</p>
         
-        <button type="submit" class="btn-mare">Logare</button>
+        <button type="submit" class="btn-mare" :disabled="seIncarca">
+          {{ seIncarca ? 'Se încarcă...' : 'Logare' }}
+        </button>
       </form>
 
       <div class="linkuri-utile">
         <p>Nu ai cont? <a href="#" @click.prevent="mergiLaRegister" class="link-roz">Creează unul acum</a></p>
-        
-        <hr class="separator" />
-        
-        <!-- Butonul secret pentru tine ca dezvoltator -->
-        <p class="text-mic">Doar pentru testare:</p>
-        <button @click="loginRapidCaAdmin" class="btn-text">🛡️ Logare rapidă ca Admin</button>
       </div>
     </div>
   </div>
@@ -33,28 +32,46 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import axios from 'axios' // <-- AM ADĂUGAT AXIOS
 
 const router = useRouter()
 const email = ref('')
 const parola = ref('')
+const mesajEroare = ref('')
+const seIncarca = ref(false)
 
-const gestioneazaLogin = () => {
-  // Logica inteligentă:
-  if (email.value.includes('@admin')) {
-    console.log('Bun venit, Administrator!')
-    router.push('/admin-dashboard') 
-  } else {
-    console.log('Bun venit, Utilizator!')
-    router.push('/dashboard') 
+const gestioneazaLogin = async () => {
+  mesajEroare.value = ''
+  seIncarca.value = true
+  
+  try {
+    // 1. Apelăm backend-ul real
+    const raspuns = await axios.post('http://localhost:8080/api/auth/login', {
+      email: email.value,
+      password: parola.value
+    });
+
+    // 2. SALVĂM DATELE ÎN BROWSER 
+    localStorage.setItem('jwt_token', raspuns.data.token);
+    localStorage.setItem('user_id', raspuns.data.id);
+    localStorage.setItem('tip_user', raspuns.data.tip_user);
+
+    console.log('Logare reușită cu backend-ul!');
+
+    // 3. Direcționăm utilizatorul în funcție de rol
+    if (raspuns.data.tip_user === 'ADMIN') {
+      router.push('/admin-dashboard'); 
+    } else {
+      router.push('/dashboard'); // sau '/chat'
+    }
+
+  } catch (eroare) {
+    console.error("Eroare la logare:", eroare);
+    // Afișăm un mesaj frumos pentru utilizator dacă a greșit parola
+    mesajEroare.value = "Email sau parolă incorectă!";
+  } finally {
+    seIncarca.value = false;
   }
-}
-
-// Această funcție te ajută să scapi de tastat când testezi interfața
-const loginRapidCaAdmin = () => {
-  email.value = 'sef@admin.ro'
-  parola.value = 'ParolaGrea123!'
-  // Apelăm direct funcția de logare
-  gestioneazaLogin()
 }
 
 const mergiLaRegister = () => router.push('/register')
@@ -69,11 +86,9 @@ const mergiLaRegister = () => router.push('/register')
 .input-group input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
 .input-group input:focus { outline: none; border-color: var(--albastru-pastel); box-shadow: 0 0 5px var(--albastru-pastel); }
 .btn-mare { background-color: var(--roz-inchis); color: white; border: none; padding: 12px; border-radius: 8px; font-size: 1.1rem; cursor: pointer; font-weight: bold; margin-top: 10px; transition: 0.3s;}
-.btn-mare:hover { background-color: var(--roz-deschis); color: #333; }
+.btn-mare:hover:not(:disabled) { background-color: var(--roz-deschis); color: #333; }
+.btn-mare:disabled { background-color: #ccc; cursor: not-allowed; }
 .linkuri-utile { margin-top: 2rem; text-align: center; font-size: 0.9rem; }
 .link-roz { color: var(--roz-inchis); font-weight: bold; text-decoration: none; }
-.separator { border: none; border-top: 1px solid #eee; margin: 1.5rem 0 1rem 0; }
-.text-mic { font-size: 0.8rem; color: #999; margin-bottom: 5px; }
-.btn-text { background: #f8f9fa; border: 1px solid #ddd; padding: 8px 15px; border-radius: 8px; color: #555; cursor: pointer; font-weight: bold; transition: 0.3s; width: 100%; }
-.btn-text:hover { background: var(--albastru-pastel); color: #333; border-color: var(--albastru-pastel); }
+.eroare-text { color: red; font-size: 0.9rem; font-weight: bold; text-align: center; margin: 0; }
 </style>
