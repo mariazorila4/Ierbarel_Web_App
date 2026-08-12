@@ -8,7 +8,6 @@
 
       <p class="descriere">Explorează enciclopedia noastră. Caută o plantă după numele ei comun sau denumirea științifică.</p>
 
-      <!-- Bara de căutare -->
       <div class="zona-cautare">
         <span class="iconita-cautare">🔍</span>
         <input 
@@ -19,12 +18,12 @@
         />
       </div>
 
-      <!-- Mesaj dacă nu găsim nimic -->
-      <div v-if="planteFiltrate.length === 0" class="mesaj-gol">
+      <div v-if="planteFiltrate.length === 0 && !seIncarca" class="mesaj-gol">
         <p>Nu am găsit nicio plantă care să se potrivească cu căutarea: "<strong>{{ termenCautare }}</strong>".</p>
       </div>
+      
+      <p v-if="seIncarca" style="text-align:center;">Se aduc plantele din baza de date... 🌿</p>
 
-      <!-- Grila de plante (afișează doar plantele filtrate) -->
       <div class="grila-plante">
         <div 
           v-for="planta in planteFiltrate" 
@@ -32,30 +31,36 @@
           class="card-planta"
           @click="deschideDetalii(planta)"
         >
-          <img :src="planta.imagineUrl" :alt="planta.nume" class="poza-planta" />
+          <!-- Folosim o imagine default dacă planta din baza de date nu are încă una -->
+          <img :src="planta.imagineUrl || 'https://images.unsplash.com/photo-1628808168235-96bece30fc6e?w=500&q=80'" :alt="planta.nume_uzual" class="poza-planta" />
+          
           <div class="info-planta">
-            <h3>{{ planta.nume }}</h3>
-            <p class="nume-stiintific">{{ planta.numeStiintific }}</p>
+            <h3>{{ planta.nume_uzual }}</h3>
+            <p class="nume-stiintific">{{ planta.denumire_stiintifica }}</p>
+            
+            <!-- BUTONUL DE SALVARE (Atenție la .stop) -->
+            <button class="btn-favorite" @click.stop="adaugaLaFavorite(planta.id)" title="Salvează în Ierbarul Meu">
+              ❤️ Salvează
+            </button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Fereastra Modală pentru Detalii -->
+    <!-- Fereastra Modală -->
     <div v-if="plantaSelectata" class="modal-overlay" @click.self="inchideDetalii">
       <div class="modal-content">
         <button class="btn-inchide" @click="inchideDetalii">✖</button>
-        
         <div class="modal-layout">
-          <img :src="plantaSelectata.imagineUrl" class="poza-detaliu" />
-          
+          <img :src="plantaSelectata.imagineUrl || 'https://images.unsplash.com/photo-1628808168235-96bece30fc6e?w=500&q=80'" class="poza-detaliu" />
           <div class="detalii-text">
-            <h2 class="nume-mare">{{ plantaSelectata.nume }}</h2>
-            <p class="nume-stiintific-mare">{{ plantaSelectata.numeStiintific }}</p>
+            <h2 class="nume-mare">{{ plantaSelectata.nume_uzual }}</h2>
+            <p class="nume-stiintific-mare">{{ plantaSelectata.denumire_stiintifica }}</p>
             <hr class="separator-modal" />
             <div class="info-grid">
               <p><strong>🌿 Familie:</strong> {{ plantaSelectata.familie }}</p>
-              <p><strong>🌸 Înflorire:</strong> {{ plantaSelectata.perioadaInflorire }}</p>
+              <p><strong>🌸 Înflorire:</strong> {{ plantaSelectata.perioada_inflorire }}</p>
+              <p><strong>🌱 Ciclu de viață:</strong> {{ plantaSelectata.ciclu_de_viata }}</p>
             </div>
             <div class="sectiune-descriere">
               <h4>Descriere:</h4>
@@ -69,73 +74,71 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
 
 const router = useRouter()
 const mergiInapoi = () => router.push('/dashboard')
 
 const termenCautare = ref('')
 const plantaSelectata = ref(null)
+const bazaDeDateGlobala = ref([])
+const seIncarca = ref(true)
 
 const deschideDetalii = (planta) => {
   plantaSelectata.value = planta
   document.body.style.overflow = 'hidden'
 }
+
 const inchideDetalii = () => {
   plantaSelectata.value = null
   document.body.style.overflow = 'auto'
 }
 
-// Baza de date "Globală" (am adăugat mai multe specii pentru a testa căutarea)
-const bazaDeDateGlobala = ref([
-  {
-    id: 1, nume: 'Mușețel', numeStiintific: 'Matricaria chamomilla', familie: 'Asteraceae', perioadaInflorire: 'Mai - August',
-    descriere: 'O plantă recunoscută mondial pentru proprietățile sale calmante.',
-    imagineUrl: 'https://images.unsplash.com/photo-1621571439975-d162a74c7d0d?w=500&q=80'
-  },
-  {
-    id: 2, nume: 'Păpădie', numeStiintific: 'Taraxacum officinale', familie: 'Asteraceae', perioadaInflorire: 'Aprilie - Septembrie',
-    descriere: 'Buruiană nutritivă cu flori galbene care se transformă în puf.',
-    imagineUrl: 'https://images.unsplash.com/photo-1550949826-38d77d121c2c?w=500&q=80'
-  },
-  {
-    id: 3, nume: 'Levănțică', numeStiintific: 'Lavandula angustifolia', familie: 'Lamiaceae', perioadaInflorire: 'Iunie - August',
-    descriere: 'Folosită în aromaterapie pentru reducerea stresului.',
-    imagineUrl: 'https://images.unsplash.com/photo-1498940869186-b4bc5943f2a1?w=500&q=80'
-  },
-  {
-    id: 4, nume: 'Mentă', numeStiintific: 'Mentha piperita', familie: 'Lamiaceae', perioadaInflorire: 'Iulie - Septembrie',
-    descriere: 'Plantă extrem de aromată, ideală pentru ceaiuri și efecte revigorante.',
-    imagineUrl: 'https://images.unsplash.com/photo-1628808168235-96bece30fc6e?w=500&q=80'
-  },
-  {
-    id: 5, nume: 'Busuioc', numeStiintific: 'Ocimum basilicum', familie: 'Lamiaceae', perioadaInflorire: 'Iunie - Septembrie',
-    descriere: 'Plantă aromatică esențială în gastronomie, cu un miros dulce-picant.',
-    imagineUrl: 'https://images.unsplash.com/photo-1628156157834-08fb226cb0e9?w=500&q=80'
+// 1. PRELUĂM PLANTELE DIN JAVA LA DESCHIDEREA PAGINII
+onMounted(async () => {
+  try {
+    const token = localStorage.getItem('jwt_token')
+    const raspuns = await axios.get('http://localhost:8080/api/plante', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    bazaDeDateGlobala.value = raspuns.data
+  } catch (eroare) {
+    console.error("Eroare la preluarea plantelor:", eroare)
+  } finally {
+    seIncarca.value = false
   }
-])
+})
 
-// Magia căutării! Filtrăm baza de date în timp ce scrii.
+// 2. FUNCȚIA DE SALVARE ÎN IERBAR
+const adaugaLaFavorite = async (plantaId) => {
+  try {
+    const token = localStorage.getItem('jwt_token')
+    const raspuns = await axios.post(`http://localhost:8080/api/plante/ierbar-personal/${plantaId}`, {}, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    alert("🌿 " + raspuns.data.mesaj)
+  } catch (eroare) {
+    console.error("Eroare la salvare:", eroare)
+    alert("A apărut o eroare la salvarea plantei.")
+  }
+}
+
+// Magia căutării (adaptată pentru variabilele din baza de date ex: nume_uzual)
 const planteFiltrate = computed(() => {
-  // Dacă nu ai scris nimic, arată toate plantele
   if (!termenCautare.value) return bazaDeDateGlobala.value
-
-  // Transformăm ce ai scris în litere mici ca să nu conteze dacă scrii cu majuscule
   const textCautat = termenCautare.value.toLowerCase()
-
   return bazaDeDateGlobala.value.filter(planta => {
-    const numePotrivire = planta.nume.toLowerCase().includes(textCautat)
-    const stiintificPotrivire = planta.numeStiintific.toLowerCase().includes(textCautat)
-    
-    // Păstrăm planta dacă termenul se găsește MĂCAR într-unul din cele două nume
-    return numePotrivire || stiintificPotrivire
+    const nume = planta.nume_uzual ? planta.nume_uzual.toLowerCase() : ''
+    const stiintific = planta.denumire_stiintifica ? planta.denumire_stiintifica.toLowerCase() : ''
+    return nume.includes(textCautat) || stiintific.includes(textCautat)
   })
 })
 </script>
 
 <style scoped>
-/* Refolosim aceleași stiluri grozave de la Ierbarul Personal, cu o adăugire pentru Bara de Căutare */
+/* PĂSTREAZĂ TOT CSS-UL TĂU DE AICI, MAI ADAUGĂ DOAR BUTONUL */
 .page-wrapper { display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; padding: 40px 20px; }
 .glass-card { background: rgba(255, 255, 255, 0.9); padding: 2.5rem; border-radius: 20px; border: 3px solid var(--verde-inchis); width: 100%; box-shadow: 0 8px 25px rgba(0,0,0,0.05); }
 .full-card { max-width: 1000px; } 
@@ -144,27 +147,11 @@ const planteFiltrate = computed(() => {
 .btn-secundar { background: white; border: 1px solid #ddd; padding: 8px 15px; border-radius: 8px; cursor: pointer; transition: 0.3s; color: #555; }
 .btn-secundar:hover { background: #f0f0f0; }
 .descriere { color: #666; margin-bottom: 20px; }
-
-/* === STILURI NOI PENTRU BARA DE CĂUTARE === */
-.zona-cautare {
-  display: flex;
-  align-items: center;
-  background: white;
-  border: 2px solid var(--verde-deschis);
-  border-radius: 12px;
-  padding: 5px 15px;
-  margin-bottom: 30px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.02);
-  transition: 0.3s;
-}
+.zona-cautare { display: flex; align-items: center; background: white; border: 2px solid var(--verde-deschis); border-radius: 12px; padding: 5px 15px; margin-bottom: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); transition: 0.3s; }
 .zona-cautare:focus-within { border-color: var(--verde-inchis); box-shadow: 0 4px 15px rgba(143, 175, 15, 0.2); }
 .iconita-cautare { font-size: 1.2rem; margin-right: 10px; opacity: 0.6; }
-.input-cautare {
-  flex: 1; border: none; padding: 12px 5px; font-size: 1.1rem; outline: none; background: transparent; color: #333;
-}
+.input-cautare { flex: 1; border: none; padding: 12px 5px; font-size: 1.1rem; outline: none; background: transparent; color: #333; }
 .mesaj-gol { text-align: center; padding: 30px; background: #fff5f5; border-radius: 12px; color: #e74c3c; font-weight: bold; margin-bottom: 20px;}
-
-/* === STILURI CARDURI (La fel) === */
 .grila-plante { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 25px; }
 .card-planta { background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 2px solid var(--crem-fundal); transition: transform 0.3s ease; cursor: pointer; }
 .card-planta:hover { transform: translateY(-5px); border-color: var(--verde-deschis); }
@@ -173,7 +160,11 @@ const planteFiltrate = computed(() => {
 .info-planta h3 { margin: 0; color: var(--verde-inchis); }
 .nume-stiintific { color: #888; font-style: italic; font-size: 0.9rem; margin: 5px 0 10px 0; }
 
-/* === STILURI MODAL (La fel) === */
+/* STIL NOU PENTRU BUTONUL DE SALVARE */
+.btn-favorite { background: #ffebeb; color: #e74c3c; border: 1px solid #ffb3b3; padding: 8px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+.btn-favorite:hover { background: #e74c3c; color: white; }
+
+/* STILURI MODAL */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; z-index: 1000; padding: 20px; box-sizing: border-box; }
 .modal-content { background: var(--crem-fundal); width: 100%; max-width: 800px; border-radius: 20px; position: relative; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: popUp 0.3s ease-out forwards; }
 @keyframes popUp { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
@@ -189,10 +180,5 @@ const planteFiltrate = computed(() => {
 .info-grid strong { color: #333; }
 .sectiune-descriere h4 { margin: 20px 0 5px 0; color: var(--verde-inchis); }
 .sectiune-descriere p { color: #666; line-height: 1.6; font-size: 0.95rem; margin: 0; }
-
-@media (max-width: 768px) {
-  .modal-layout { flex-direction: column; }
-  .poza-detaliu { width: 100%; height: 250px; min-height: auto; }
-  .detalii-text { width: 100%; border-radius: 0; padding: 20px; }
-}
+@media (max-width: 768px) { .modal-layout { flex-direction: column; } .poza-detaliu { width: 100%; height: 250px; min-height: auto; } .detalii-text { width: 100%; border-radius: 0; padding: 20px; } }
 </style>

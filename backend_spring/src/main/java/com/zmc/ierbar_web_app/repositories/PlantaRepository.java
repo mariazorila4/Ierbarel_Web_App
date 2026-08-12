@@ -1,12 +1,14 @@
 package com.zmc.ierbar_web_app.repositories;
 
+import java.util.List;
+
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.zmc.ierbar_web_app.models.factory.CategoriePlanta;
 import com.zmc.ierbar_web_app.models.factory.PlantaFactory;
-import com.zmc.ierbar_web_app.models.simple_factory.*;
-import java.util.List;
+import com.zmc.ierbar_web_app.models.simple_factory.Planta;
+import com.zmc.ierbar_web_app.models.simple_factory.TipPlanta;
 
 @Repository
 public class PlantaRepository{
@@ -38,10 +40,11 @@ public class PlantaRepository{
             boolean pomFructifer=rs.getBoolean("pom_fructifer");
             boolean produceFructe=rs.getBoolean("produce_fructe");
             String tipTulpina=rs.getString("tip_tulpina");
+            String imagineUrl=rs.getString("imagine_url");
 
             PlantaFactory plantaFactory = new PlantaFactory();
             Planta p = plantaFactory.creazaPlanta(categoriePlanta, idPlanta, numeUzual, numeStiintific,
-                familie, descriere, inaltimeMaxima, perioadaInflorire, cicluDeViata, tipPlanta,
+                familie, descriere, inaltimeMaxima, perioadaInflorire, cicluDeViata, tipPlanta, imagineUrl,
                 nrPetale, culoare, tipCoroana, tipFrunza, pomFructifer, produceFructe, tipTulpina, poateFiUscata);
 
             p.setId(idPlanta);
@@ -54,19 +57,53 @@ public class PlantaRepository{
             p.setPerioada_inflorire(perioadaInflorire);
             p.setCiclu_de_viata(cicluDeViata);
             p.setTip_planta(tipPlanta);
+            p.setImagine_url(imagineUrl);
 
             return p;
         });
     }
 
-    public void salveazaPlantaNoua(Planta planta, int idAdmin){
+    public void salveazaPlantaNoua(Planta planta, int idAdmin, String imagineUrl, int numarPetale, 
+                                   String culoare, String tipCoroana, String tipFrunza, 
+                                   boolean pomFructifer, boolean produceFructe, String tipTulpina){
+                                   
         String sql="INSERT INTO plante (nume_uzual, denumire_stiintifica, familie, descriere, inaltime_maxima, "+
-                    "perioada_inflorire, poate_fi_uscata, ciclu_de_viata, tip_planta, categorie_planta, numar_petale, "+
-                    "culoare, tip_coroana, tip_frunza, pom_fructife, produce_fructe, tip_tulpina, adaugat_de_admin_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                   "perioada_inflorire, poate_fi_uscata, ciclu_de_viata, tip_planta, categorie_planta, numar_petale, "+
+                   "culoare, tip_coroana, tip_frunza, pom_fructifer, produce_fructe, tip_tulpina, adaugat_de_admin_id, imagine_url) " +
+                   "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-        String categoriePlanta=planta.getClass().getSimpleName().toUpperCase();
-        jdbcTemplate.update(sql, planta.getNume_uzual(), planta.getDenumire_stiintifica(), planta.getFamilie(), planta.getDescriere(),
-                    planta.getInaltime_maxima(), planta.getPerioada_inflorire(), planta.isPoate_fi_uscata(), planta.getCiclu_de_viata(),
-                    planta.getTip_planta(), categoriePlanta, idAdmin);
+        String categoriePlanta = planta.getClass().getSimpleName().toUpperCase();
+        
+        jdbcTemplate.update(sql, 
+            planta.getNume_uzual(), 
+            planta.getDenumire_stiintifica(), 
+            planta.getFamilie(), 
+            planta.getDescriere(),
+            planta.getInaltime_maxima(), 
+            planta.getPerioada_inflorire(), 
+            planta.isPoate_fi_uscata(), 
+            planta.getCiclu_de_viata(), 
+            planta.getTip_planta().name(), 
+            categoriePlanta, 
+            numarPetale, 
+            culoare, 
+            tipCoroana, 
+            tipFrunza, 
+            pomFructifer, 
+            produceFructe, 
+            tipTulpina, 
+            idAdmin, 
+            imagineUrl
+        );
+    }
+
+    public void adaugaInIerbar(int userId, int plantaId){
+        String sql="INSERT INTO plante_favorite (user_id, planta_id) VALUES (?, ?) ON CONFLICT DO NOTHING";
+        jdbcTemplate.update(sql, userId, plantaId);
+    }
+
+    public void stergeDinIerbar(int userId, int plantaId){
+        String sql="DELETE FROM plante_favorite WHERE user_id=? AND planta_id=?";
+        jdbcTemplate.update(sql, userId, plantaId);
     }
 }

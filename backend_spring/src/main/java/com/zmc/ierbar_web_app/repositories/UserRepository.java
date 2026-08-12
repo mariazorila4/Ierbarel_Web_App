@@ -101,6 +101,7 @@ public class UserRepository {
             String cicluDeViata=rs.getString("ciclu_de_viata");
             boolean poateFiUscata=rs.getBoolean("poate_fi_uscata");
             TipPlanta tipPlanta=TipPlanta.valueOf(rs.getString("tip_planta"));
+            String imagineUrl=rs.getString("imagine_url");
             int nrPetale=rs.getInt("numar_petale");
             String culoare=rs.getString("culoare");
             String tipCoroana=rs.getString("tip_coroana");
@@ -111,7 +112,7 @@ public class UserRepository {
 
             PlantaFactory plantaFactory = new PlantaFactory();
             Planta p = plantaFactory.creazaPlanta(categoriePlanta, idPlanta, numeUzual, numeStiintific,
-                familie, descriere, inaltimeMaxima, perioadaInflorire, cicluDeViata, tipPlanta,
+                familie, descriere, inaltimeMaxima, perioadaInflorire, cicluDeViata, tipPlanta, imagineUrl,
                 nrPetale, culoare, tipCoroana, tipFrunza, pomFructifer, produceFructe, tipTulpina, poateFiUscata);
 
             p.setId(idPlanta);
@@ -124,6 +125,7 @@ public class UserRepository {
             p.setPerioada_inflorire(perioadaInflorire);
             p.setCiclu_de_viata(cicluDeViata);
             p.setTip_planta(tipPlanta);
+            p.setImagine_url(imagineUrl);
 
             return p;
         }, idUser);
@@ -161,6 +163,7 @@ public class UserRepository {
             String cicluDeViata=rs.getString("ciclu_de_viata");
             boolean poateFiUscata=rs.getBoolean("poate_fi_uscata");
             TipPlanta tipPlanta=TipPlanta.valueOf(rs.getString("tip_planta"));
+            String imagineUrl=rs.getString("imagine_url");
             int nrPetale=rs.getInt("numar_petale");
             String culoare=rs.getString("culoare");
             String tipCoroana=rs.getString("tip_coroana");
@@ -171,7 +174,7 @@ public class UserRepository {
 
             PlantaFactory plantaFactory = new PlantaFactory();
             Planta p = plantaFactory.creazaPlanta(categoriePlanta, idPlanta, numeUzual, numeStiintific,
-                familie, descriere, inaltimeMaxima, perioadaInflorire, cicluDeViata, tipPlanta,
+                familie, descriere, inaltimeMaxima, perioadaInflorire, cicluDeViata, tipPlanta, imagineUrl,
                 nrPetale, culoare, tipCoroana, tipFrunza, pomFructifer, produceFructe, tipTulpina, poateFiUscata);
 
             p.setId(idPlanta);
@@ -184,6 +187,7 @@ public class UserRepository {
             p.setPerioada_inflorire(perioadaInflorire);
             p.setCiclu_de_viata(cicluDeViata);
             p.setTip_planta(tipPlanta);
+            p.setImagine_url(imagineUrl);
 
             return p;
 
