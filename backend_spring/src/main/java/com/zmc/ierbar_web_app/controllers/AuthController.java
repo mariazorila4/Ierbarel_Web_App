@@ -59,6 +59,11 @@ public class AuthController{
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("mesaj", "Email sau parola incorecta"));
         }
 
+        if(user.getStatus()!=null && user.getStatus().equals("Blocat")){
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of("mesaj", "Contul tau a fost blocat de administrator!"));
+        }
+
         String token=jwtUtil.genereazaToken(user.getId(), user.getEmail(), user.getTip_user().toString());
 
         Map<String, Object> raspuns=new HashMap<>();

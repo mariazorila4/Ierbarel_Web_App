@@ -1,8 +1,8 @@
 package com.zmc.ierbar_web_app.models.user;
 
 import org.springframework.data.annotation.Id;
-import org.springframework.data.relational.core.mapping.Table;
 import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 @Table("users")
 public abstract class User {
@@ -22,15 +22,19 @@ public abstract class User {
     @Column("tip_user")
     private TipUser tip_user;
 
+    @Column("status")
+    private String status;
+
     public User() {
     }
 
-    public User(int id, String username, String password, String email, TipUser tip_user) {
+    public User(int id, String username, String password, String email, TipUser tip_user, String status) {
         this.id = id;
         this.username = username;
         this.password = password;
         this.email = email;
         this.tip_user = tip_user;
+        this.status=status;
     }
 
     public int getId() {
@@ -83,7 +87,16 @@ public abstract class User {
         sb.append(", password='").append(password).append('\'');
         sb.append(", email='").append(email).append('\'');
         sb.append(", tip_user=").append(tip_user);
+        sb.append(", status").append(status);
         sb.append('}');
         return sb.toString();
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 }

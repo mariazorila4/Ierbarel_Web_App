@@ -34,6 +34,7 @@ public class UserRepository {
                 g.setUsername(rs.getString("username"));
                 g.setEmail(rs.getString("email"));
                 g.setPassword(rs.getString("password"));
+                g.setStatus(rs.getString("status"));
                 
                 if(rs.getString("tip_user") != null) {
                     g.setTip_user(TipUser.valueOf(rs.getString("tip_user")));
@@ -191,5 +192,29 @@ public class UserRepository {
         admin.setPlanteIerbarOnline(planteIerbarOnline);
 
         return admin;
+    }
+
+    public List<General> extrageTotiUtilizatorii(){
+        String sql="SELECT id, username, email, status FROM users WHERE tip_user='GENERAL'";
+
+        return jdbcTemplate.query(sql, (rs, rand)->{
+            General g=new General();
+            g.setId(rs.getInt("id"));
+            g.setUsername(rs.getString("username"));
+            g.setEmail(rs.getString("email"));
+            g.setStatus(rs.getString("status"));
+
+            return g;
+        });
+    }
+
+    public void stergeUser(int id){
+        String sql="DELETE FROM users WHERE id=?";
+        jdbcTemplate.update(sql, id);
+    }
+
+    public void schimbaStatusUtilizator(int id, String newStatus){
+        String sql="UPDATE users SET status=? WHERE id=?";
+        jdbcTemplate.update(sql, newStatus, id);
     }
 }
