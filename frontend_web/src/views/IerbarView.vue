@@ -19,12 +19,11 @@
           class="card-planta"
           @click="deschideDetalii(planta)"
         >
-          <img :src="planta.imagineUrl || 'https://images.unsplash.com/photo-1550949826-38d77d121c2c?w=500&q=80'" :alt="planta.nume_uzual" class="poza-planta" />
+          <img :src="planta.imagine_url || 'https://images.unsplash.com/photo-1550949826-38d77d121c2c?w=500&q=80'" :alt="planta.nume_uzual" class="poza-planta" />
           <div class="info-planta">
             <h3>{{ planta.nume_uzual }}</h3>
             <p class="nume-stiintific">{{ planta.denumire_stiintifica }}</p>
             
-            <!-- BUTONUL DE ȘTERGERE -->
             <button class="btn-stergere" @click.stop="stergePlanta(planta.id)">
               🗑️ Șterge
             </button>
@@ -38,15 +37,42 @@
       <div class="modal-content">
         <button class="btn-inchide" @click="inchideDetalii">✖</button>
         <div class="modal-layout">
-          <img :src="plantaSelectata.imagineUrl || 'https://images.unsplash.com/photo-1550949826-38d77d121c2c?w=500&q=80'" class="poza-detaliu" />
+          <img :src="plantaSelectata.imagine_url || 'https://images.unsplash.com/photo-1550949826-38d77d121c2c?w=500&q=80'" class="poza-detaliu" />
           <div class="detalii-text">
             <h2 class="nume-mare">{{ plantaSelectata.nume_uzual }}</h2>
             <p class="nume-stiintific-mare">{{ plantaSelectata.denumire_stiintifica }}</p>
             <hr class="separator-modal" />
+            
             <div class="info-grid">
               <p><strong>🌿 Familie:</strong> {{ plantaSelectata.familie }}</p>
+              <p><strong>📂 Categorie:</strong> {{ plantaSelectata.categorie_planta }}</p>
               <p><strong>🌸 Înflorire:</strong> {{ plantaSelectata.perioada_inflorire }}</p>
+              <p><strong>🌱 Ciclu de viață:</strong> {{ plantaSelectata.ciclu_de_viata }}</p>
+              <p><strong>🏷️ Tip plantă:</strong> {{ plantaSelectata.tip_planta }}</p>
+              <p><strong>📏 Înălțime max:</strong> {{ plantaSelectata.inaltime_maxima }} metri</p>
+              <p><strong>🍂 Poate fi uscată:</strong> {{ plantaSelectata.poate_fi_uscata ? 'Da' : 'Nu' }}</p>
+
+              <!-- Condiții specifice pentru fiecare categorie -->
+              <template v-if="plantaSelectata.categorie_planta === 'FLOARE'">
+                <p><strong>🌸 Nr. Petale:</strong> {{ plantaSelectata.numar_petale }}</p>
+                <p><strong>🎨 Culoare:</strong> {{ plantaSelectata.culoare }}</p>
+              </template>
+
+              <template v-if="plantaSelectata.categorie_planta === 'ARBORE'">
+                <p><strong>🌳 Coroană:</strong> {{ plantaSelectata.tip_coroana }}</p>
+                <p><strong>🍃 Frunză:</strong> {{ plantaSelectata.tip_frunza }}</p>
+                <p><strong>🍎 Pom fructifer:</strong> {{ plantaSelectata.pom_fructifer ? 'Da' : 'Nu' }}</p>
+              </template>
+
+              <template v-if="plantaSelectata.categorie_planta === 'ARBUST'">
+                <p><strong>🍒 Produce fructe:</strong> {{ plantaSelectata.produce_fructe ? 'Da' : 'Nu' }}</p>
+              </template>
+
+              <template v-if="plantaSelectata.categorie_planta === 'IERBURI'">
+                <p><strong>🌾 Tip tulpină:</strong> {{ plantaSelectata.tip_tulpina }}</p>
+              </template>
             </div>
+
             <div class="sectiune-descriere">
               <h4>Descriere:</h4>
               <p>{{ plantaSelectata.descriere }}</p>
@@ -80,17 +106,15 @@ const inchideDetalii = () => {
   document.body.style.overflow = 'auto'
 }
 
-// 1. PRELUĂM PLANTELE UTILIZATORULUI LA ÎNCĂRCARE
 onMounted(async () => {
   try {
     const token = localStorage.getItem('jwt_token')
-    const userId = localStorage.getItem('user_id') // Luăm ID-ul salvat la login
+    const userId = localStorage.getItem('user_id') 
 
     const raspuns = await axios.get(`http://localhost:8080/api/users/general/${userId}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     
-    // În backend ai definit variabila planteFavorite în clasa General
     planteleMele.value = raspuns.data.planteFavorite || []
   } catch (eroare) {
     console.error("Eroare la preluarea ierbarului:", eroare)
@@ -99,7 +123,6 @@ onMounted(async () => {
   }
 })
 
-// 2. FUNCȚIA DE ȘTERGERE DIN IERBAR
 const stergePlanta = async (plantaId) => {
   if (!confirm("Ești sigur că vrei să ștergi această plantă din colecția ta?")) return;
 
@@ -109,7 +132,6 @@ const stergePlanta = async (plantaId) => {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     
-    // O eliminăm și de pe ecran instant
     planteleMele.value = planteleMele.value.filter(planta => planta.id !== plantaId)
     
   } catch (eroare) {
@@ -120,7 +142,6 @@ const stergePlanta = async (plantaId) => {
 </script>
 
 <style scoped>
-/* PĂSTREAZĂ TOT CSS-UL TĂU ȘI ADAUGĂ STILUL PENTRU MESAJ GOL ȘI BUTONUL DE ȘTERGERE */
 .page-wrapper { display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; padding: 40px 20px; }
 .glass-card { background: rgba(255, 255, 255, 0.9); padding: 2.5rem; border-radius: 20px; border: 3px solid var(--albastru-pastel); width: 100%; box-shadow: 0 8px 25px rgba(0,0,0,0.05); }
 .full-card { max-width: 1000px; } 
@@ -136,13 +157,9 @@ const stergePlanta = async (plantaId) => {
 .info-planta { padding: 15px; text-align: center; }
 .info-planta h3 { margin: 0; color: var(--verde-inchis); }
 .nume-stiintific { color: #888; font-style: italic; font-size: 0.9rem; margin: 5px 0 10px 0; }
-
-/* STILURI NOI ADAUGATE */
 .mesaj-gol { text-align: center; padding: 30px; background: #f9f9f9; border-radius: 12px; color: #666; font-style: italic; }
 .btn-stergere { background: #f8d7da; color: #721c24; border: none; padding: 8px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
 .btn-stergere:hover { background: #e2aeb3; }
-
-/* STILURI MODAL */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; z-index: 1000; padding: 20px; box-sizing: border-box; }
 .modal-content { background: var(--crem-fundal); width: 100%; max-width: 800px; border-radius: 20px; position: relative; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: popUp 0.3s ease-out forwards; }
 @keyframes popUp { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
