@@ -67,8 +67,15 @@ const gestioneazaLogin = async () => {
 
   } catch (eroare) {
     console.error("Eroare la logare:", eroare);
-    // Afișăm un mesaj frumos pentru utilizator dacă a greșit parola
-    mesajEroare.value = "Email sau parolă incorectă!";
+    
+    // Verificăm dacă Spring Boot ne-a trimis un mesaj specific (ex: Cont blocat)
+    if (eroare.response && eroare.response.data && eroare.response.data.mesaj) {
+      mesajEroare.value = eroare.response.data.mesaj;
+    } 
+    // Dacă e o eroare generală (401 Unauthorized), afișăm mesajul standard
+    else {
+      mesajEroare.value = "Email sau parolă incorectă!";
+    }
   } finally {
     seIncarca.value = false;
   }

@@ -1,7 +1,8 @@
 package com.zmc.ierbar_web_app.models.simple_factory;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.relational.core.mapping.Table;
 import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
+
 import com.zmc.ierbar_web_app.models.factory.CategoriePlanta;
 
 @Table("plante")
@@ -40,10 +41,13 @@ public abstract class Planta{
     @Column("categorie_planta") 
     protected CategoriePlanta categorie_planta;
 
+    @Column("imagine_url")
+    protected String imagine_url;
+
     public Planta() {
     }
 
-    public Planta(int id, String nume_uzual, String denumire_stiintifica, String familie, String descriere, float inaltime_maxima, String perioada_inflorire, boolean poate_fi_uscata, String ciclu_de_viata, TipPlanta tip_planta, CategoriePlanta categorie_planta) {
+    public Planta(int id, String nume_uzual, String denumire_stiintifica, String familie, String descriere, float inaltime_maxima, String perioada_inflorire, boolean poate_fi_uscata, String ciclu_de_viata, TipPlanta tip_planta, String imagine_url, CategoriePlanta categorie_planta) {
         this.id = id;
         this.nume_uzual = nume_uzual;
         this.denumire_stiintifica = denumire_stiintifica;
@@ -54,6 +58,7 @@ public abstract class Planta{
         this.poate_fi_uscata = poate_fi_uscata;
         this.ciclu_de_viata = ciclu_de_viata;
         this.tip_planta = tip_planta;
+        this.imagine_url=imagine_url;
         this.categorie_planta = categorie_planta;
     }
 
@@ -158,8 +163,17 @@ public abstract class Planta{
         sb.append(", poate_fi_uscata=").append(isPoate_fi_uscata());
         sb.append(", ciclu_de_viata='").append(ciclu_de_viata).append('\'');
         sb.append(", tip_planta=").append(tip_planta);
+        sb.append(", imagine_url").append(imagine_url);
         sb.append(", categorie_planta=").append(categorie_planta);
         sb.append('}');
         return sb.toString();
+    }
+
+    public String getImagine_url() {
+        return imagine_url;
+    }
+
+    public void setImagine_url(String imagine_url) {
+        this.imagine_url = imagine_url;
     }
 }

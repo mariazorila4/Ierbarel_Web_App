@@ -34,6 +34,7 @@ public class UserRepository {
                 g.setUsername(rs.getString("username"));
                 g.setEmail(rs.getString("email"));
                 g.setPassword(rs.getString("password"));
+                g.setStatus(rs.getString("status"));
                 
                 if(rs.getString("tip_user") != null) {
                     g.setTip_user(TipUser.valueOf(rs.getString("tip_user")));
@@ -100,6 +101,7 @@ public class UserRepository {
             String cicluDeViata=rs.getString("ciclu_de_viata");
             boolean poateFiUscata=rs.getBoolean("poate_fi_uscata");
             TipPlanta tipPlanta=TipPlanta.valueOf(rs.getString("tip_planta"));
+            String imagineUrl=rs.getString("imagine_url");
             int nrPetale=rs.getInt("numar_petale");
             String culoare=rs.getString("culoare");
             String tipCoroana=rs.getString("tip_coroana");
@@ -110,7 +112,7 @@ public class UserRepository {
 
             PlantaFactory plantaFactory = new PlantaFactory();
             Planta p = plantaFactory.creazaPlanta(categoriePlanta, idPlanta, numeUzual, numeStiintific,
-                familie, descriere, inaltimeMaxima, perioadaInflorire, cicluDeViata, tipPlanta,
+                familie, descriere, inaltimeMaxima, perioadaInflorire, cicluDeViata, tipPlanta, imagineUrl,
                 nrPetale, culoare, tipCoroana, tipFrunza, pomFructifer, produceFructe, tipTulpina, poateFiUscata);
 
             p.setId(idPlanta);
@@ -123,6 +125,7 @@ public class UserRepository {
             p.setPerioada_inflorire(perioadaInflorire);
             p.setCiclu_de_viata(cicluDeViata);
             p.setTip_planta(tipPlanta);
+            p.setImagine_url(imagineUrl);
 
             return p;
         }, idUser);
@@ -160,6 +163,7 @@ public class UserRepository {
             String cicluDeViata=rs.getString("ciclu_de_viata");
             boolean poateFiUscata=rs.getBoolean("poate_fi_uscata");
             TipPlanta tipPlanta=TipPlanta.valueOf(rs.getString("tip_planta"));
+            String imagineUrl=rs.getString("imagine_url");
             int nrPetale=rs.getInt("numar_petale");
             String culoare=rs.getString("culoare");
             String tipCoroana=rs.getString("tip_coroana");
@@ -170,7 +174,7 @@ public class UserRepository {
 
             PlantaFactory plantaFactory = new PlantaFactory();
             Planta p = plantaFactory.creazaPlanta(categoriePlanta, idPlanta, numeUzual, numeStiintific,
-                familie, descriere, inaltimeMaxima, perioadaInflorire, cicluDeViata, tipPlanta,
+                familie, descriere, inaltimeMaxima, perioadaInflorire, cicluDeViata, tipPlanta, imagineUrl,
                 nrPetale, culoare, tipCoroana, tipFrunza, pomFructifer, produceFructe, tipTulpina, poateFiUscata);
 
             p.setId(idPlanta);
@@ -183,6 +187,7 @@ public class UserRepository {
             p.setPerioada_inflorire(perioadaInflorire);
             p.setCiclu_de_viata(cicluDeViata);
             p.setTip_planta(tipPlanta);
+            p.setImagine_url(imagineUrl);
 
             return p;
 
@@ -191,5 +196,29 @@ public class UserRepository {
         admin.setPlanteIerbarOnline(planteIerbarOnline);
 
         return admin;
+    }
+
+    public List<General> extrageTotiUtilizatorii(){
+        String sql="SELECT id, username, email, status FROM users WHERE tip_user='GENERAL'";
+
+        return jdbcTemplate.query(sql, (rs, rand)->{
+            General g=new General();
+            g.setId(rs.getInt("id"));
+            g.setUsername(rs.getString("username"));
+            g.setEmail(rs.getString("email"));
+            g.setStatus(rs.getString("status"));
+
+            return g;
+        });
+    }
+
+    public void stergeUser(int id){
+        String sql="DELETE FROM users WHERE id=?";
+        jdbcTemplate.update(sql, id);
+    }
+
+    public void schimbaStatusUtilizator(int id, String newStatus){
+        String sql="UPDATE users SET status=? WHERE id=?";
+        jdbcTemplate.update(sql, newStatus, id);
     }
 }

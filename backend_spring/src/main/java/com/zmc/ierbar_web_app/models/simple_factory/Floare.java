@@ -1,8 +1,9 @@
 package com.zmc.ierbar_web_app.models.simple_factory;
 
 import org.springframework.data.relational.core.mapping.Column;
-import com.zmc.ierbar_web_app.models.factory.CategoriePlanta;
+
 import com.zmc.ierbar_web_app.models.PreparabilPentruUscare;
+import com.zmc.ierbar_web_app.models.factory.CategoriePlanta;
 
 public class Floare extends Planta implements PreparabilPentruUscare {
     @Column("numar_petale")
@@ -17,9 +18,9 @@ public class Floare extends Planta implements PreparabilPentruUscare {
 
     public Floare(int id, String nume_uzual, String denumire_stiintifica, String familie, String descriere,
          float inaltime_maxima, String perioada_inflorire, boolean poate_fi_uscata, String ciclu_de_viata,
-         TipPlanta tip_planta, CategoriePlanta categorie_planta, int numar_petale, String culoare) {
+         TipPlanta tip_planta, String imagine_url, CategoriePlanta categorie_planta, int numar_petale, String culoare) {
         super(id, nume_uzual, denumire_stiintifica, familie, descriere, inaltime_maxima,
-             perioada_inflorire, poate_fi_uscata, ciclu_de_viata, tip_planta, categorie_planta);
+             perioada_inflorire, poate_fi_uscata, ciclu_de_viata, tip_planta, imagine_url, categorie_planta);
         this.numar_petale = numar_petale;
         this.culoare = culoare;
     }
