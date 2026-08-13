@@ -22,7 +22,8 @@ public class PlantaRepository{
         String sqlPlante="SELECT * FROM plante";
 
         return jdbcTemplate.query(sqlPlante, (rs, rand)->{
-            CategoriePlanta categoriePlanta= CategoriePlanta.valueOf(rs.getString("categorie"));
+            // Corectat: Numele coloanei este "categorie_planta", nu "categorie"
+            CategoriePlanta categoriePlanta= CategoriePlanta.valueOf(rs.getString("categorie_planta"));
             int idPlanta=rs.getInt("id");
             String numeUzual=rs.getString("nume_uzual");
             String numeStiintific=rs.getString("denumire_stiintifica");
@@ -67,10 +68,12 @@ public class PlantaRepository{
                                    String culoare, String tipCoroana, String tipFrunza, 
                                    boolean pomFructifer, boolean produceFructe, String tipTulpina){
                                    
+        // Corectat: admin_plant_id în loc de adaugat_de_admin_id
+        // Corectat: adăugat ::tip_planta și ::categorie_planta pentru ENUM-urile din PostgreSQL
         String sql="INSERT INTO plante (nume_uzual, denumire_stiintifica, familie, descriere, inaltime_maxima, "+
                    "perioada_inflorire, poate_fi_uscata, ciclu_de_viata, tip_planta, categorie_planta, numar_petale, "+
-                   "culoare, tip_coroana, tip_frunza, pom_fructifer, produce_fructe, tip_tulpina, adaugat_de_admin_id, imagine_url) " +
-                   "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                   "culoare, tip_coroana, tip_frunza, pom_fructifer, produce_fructe, tip_tulpina, admin_plant_id, imagine_url) " +
+                   "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::tip_planta, ?::categorie_planta, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         String categoriePlanta = planta.getClass().getSimpleName().toUpperCase();
         

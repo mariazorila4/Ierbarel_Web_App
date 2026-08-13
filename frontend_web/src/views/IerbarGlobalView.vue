@@ -31,14 +31,12 @@
           class="card-planta"
           @click="deschideDetalii(planta)"
         >
-          <!-- Folosim o imagine default dacă planta din baza de date nu are încă una -->
-          <img :src="planta.imagineUrl || 'https://images.unsplash.com/photo-1628808168235-96bece30fc6e?w=500&q=80'" :alt="planta.nume_uzual" class="poza-planta" />
+          <img :src="planta.imagine_url || 'https://images.unsplash.com/photo-1628808168235-96bece30fc6e?w=500&q=80'" :alt="planta.nume_uzual" class="poza-planta" />
           
           <div class="info-planta">
             <h3>{{ planta.nume_uzual }}</h3>
             <p class="nume-stiintific">{{ planta.denumire_stiintifica }}</p>
             
-            <!-- BUTONUL DE SALVARE (Atenție la .stop) -->
             <button class="btn-favorite" @click.stop="adaugaLaFavorite(planta.id)" title="Salvează în Ierbarul Meu">
               ❤️ Salvează
             </button>
@@ -52,16 +50,42 @@
       <div class="modal-content">
         <button class="btn-inchide" @click="inchideDetalii">✖</button>
         <div class="modal-layout">
-          <img :src="plantaSelectata.imagineUrl || 'https://images.unsplash.com/photo-1628808168235-96bece30fc6e?w=500&q=80'" class="poza-detaliu" />
+          <img :src="plantaSelectata.imagine_url || 'https://images.unsplash.com/photo-1628808168235-96bece30fc6e?w=500&q=80'" class="poza-detaliu" />
           <div class="detalii-text">
             <h2 class="nume-mare">{{ plantaSelectata.nume_uzual }}</h2>
             <p class="nume-stiintific-mare">{{ plantaSelectata.denumire_stiintifica }}</p>
             <hr class="separator-modal" />
+            
             <div class="info-grid">
               <p><strong>🌿 Familie:</strong> {{ plantaSelectata.familie }}</p>
+              <p><strong>📂 Categorie:</strong> {{ plantaSelectata.categorie_planta }}</p>
               <p><strong>🌸 Înflorire:</strong> {{ plantaSelectata.perioada_inflorire }}</p>
               <p><strong>🌱 Ciclu de viață:</strong> {{ plantaSelectata.ciclu_de_viata }}</p>
+              <p><strong>🏷️ Tip plantă:</strong> {{ plantaSelectata.tip_planta }}</p>
+              <p><strong>📏 Înălțime max:</strong> {{ plantaSelectata.inaltime_maxima }} metri</p>
+              <p><strong>🍂 Poate fi uscată:</strong> {{ plantaSelectata.poate_fi_uscata ? 'Da' : 'Nu' }}</p>
+
+              <!-- Condiții specifice pentru fiecare categorie -->
+              <template v-if="plantaSelectata.categorie_planta === 'FLOARE'">
+                <p><strong>🌸 Nr. Petale:</strong> {{ plantaSelectata.numar_petale }}</p>
+                <p><strong>🎨 Culoare:</strong> {{ plantaSelectata.culoare }}</p>
+              </template>
+
+              <template v-if="plantaSelectata.categorie_planta === 'ARBORE'">
+                <p><strong>🌳 Coroană:</strong> {{ plantaSelectata.tip_coroana }}</p>
+                <p><strong>🍃 Frunză:</strong> {{ plantaSelectata.tip_frunza }}</p>
+                <p><strong>🍎 Pom fructifer:</strong> {{ plantaSelectata.pom_fructifer ? 'Da' : 'Nu' }}</p>
+              </template>
+
+              <template v-if="plantaSelectata.categorie_planta === 'ARBUST'">
+                <p><strong>🍒 Produce fructe:</strong> {{ plantaSelectata.produce_fructe ? 'Da' : 'Nu' }}</p>
+              </template>
+
+              <template v-if="plantaSelectata.categorie_planta === 'IERBURI'">
+                <p><strong>🌾 Tip tulpină:</strong> {{ plantaSelectata.tip_tulpina }}</p>
+              </template>
             </div>
+
             <div class="sectiune-descriere">
               <h4>Descriere:</h4>
               <p>{{ plantaSelectata.descriere }}</p>
@@ -96,7 +120,6 @@ const inchideDetalii = () => {
   document.body.style.overflow = 'auto'
 }
 
-// 1. PRELUĂM PLANTELE DIN JAVA LA DESCHIDEREA PAGINII
 onMounted(async () => {
   try {
     const token = localStorage.getItem('jwt_token')
@@ -111,7 +134,6 @@ onMounted(async () => {
   }
 })
 
-// 2. FUNCȚIA DE SALVARE ÎN IERBAR
 const adaugaLaFavorite = async (plantaId) => {
   try {
     const token = localStorage.getItem('jwt_token')
@@ -125,7 +147,6 @@ const adaugaLaFavorite = async (plantaId) => {
   }
 }
 
-// Magia căutării (adaptată pentru variabilele din baza de date ex: nume_uzual)
 const planteFiltrate = computed(() => {
   if (!termenCautare.value) return bazaDeDateGlobala.value
   const textCautat = termenCautare.value.toLowerCase()
@@ -138,7 +159,6 @@ const planteFiltrate = computed(() => {
 </script>
 
 <style scoped>
-/* PĂSTREAZĂ TOT CSS-UL TĂU DE AICI, MAI ADAUGĂ DOAR BUTONUL */
 .page-wrapper { display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; padding: 40px 20px; }
 .glass-card { background: rgba(255, 255, 255, 0.9); padding: 2.5rem; border-radius: 20px; border: 3px solid var(--verde-inchis); width: 100%; box-shadow: 0 8px 25px rgba(0,0,0,0.05); }
 .full-card { max-width: 1000px; } 
@@ -159,12 +179,8 @@ const planteFiltrate = computed(() => {
 .info-planta { padding: 15px; text-align: center; }
 .info-planta h3 { margin: 0; color: var(--verde-inchis); }
 .nume-stiintific { color: #888; font-style: italic; font-size: 0.9rem; margin: 5px 0 10px 0; }
-
-/* STIL NOU PENTRU BUTONUL DE SALVARE */
 .btn-favorite { background: #ffebeb; color: #e74c3c; border: 1px solid #ffb3b3; padding: 8px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
 .btn-favorite:hover { background: #e74c3c; color: white; }
-
-/* STILURI MODAL */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; z-index: 1000; padding: 20px; box-sizing: border-box; }
 .modal-content { background: var(--crem-fundal); width: 100%; max-width: 800px; border-radius: 20px; position: relative; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: popUp 0.3s ease-out forwards; }
 @keyframes popUp { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
