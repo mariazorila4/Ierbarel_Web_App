@@ -23,8 +23,7 @@
             <MascotaGhiocel class="avatar-mesaj" />
           </div>
           
-          <div class="bula-mesaj">
-            {{ mesaj.text }}
+          <div class="bula-mesaj" v-html="formateazaMarkdown(mesaj.text)">
           </div>
         </div>
       </div>
@@ -63,6 +62,17 @@ import MascotaGhiocel from '../components/MascotaGhiocel.vue'
 const router = useRouter()
 const mergiInapoi = () => router.push('/dashboard')
 
+const formateazaMarkdown=(text)=>{
+  if(!text) return '';
+
+  let html=text;
+  html=html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  html=html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  html=html.replace(/\n/g, '<br>');
+
+  return html;
+}
+
 const zonaChat = ref(null)
 const mesajNou = ref('')
 const arataSugestii = ref(true)
@@ -72,7 +82,7 @@ const istoricMesaje = ref([
 ])
 
 const optiuniRapide = ref([
-  'Cum ud corect un Ficus?',
+  'Cum ud corect o plantă?',
   'De ce se îngălbenesc frunzele?',
   'Ce plante supraviețuiesc la umbră?',
   'Cum scap de dăunători ecologic?'
@@ -92,18 +102,26 @@ const trimiteMesaj = async (text) => {
   await scrollLaFinal()
 
   try {
-    // 3. AICI E MAGIA: Trimitem cererea către Spring Boot!
-    // Presupunem că backend-ul tău rulează pe portul 8080 și ai creat o rută POST /api/chat
-    const raspunsBackend = await axios.post('http://localhost:8080/api/chat', { 
+    const token=localStorage.getItem('jwt_token');
+
+    if(!token){
+      console.error('Nu a putut fi gasit tokenul! Nu esti logat!');
+      return;
+    }
+
+    const raspunsBackend = await axios.post('http://localhost:8080/api/chat/trimite', { 
       mesaj: text 
-    })
+    },
+    {
+      headers:{
+        'Authorization':`Bearer ${token}`
+      }
+    });
 
     // 4. Scoatem mesajul de așteptare...
     istoricMesaje.value.pop()
     
-    // ...și punem răspunsul primit de la Java
-    // (Presupunem că Java returnează un JSON cu un câmp numit "raspuns")
-    istoricMesaje.value.push({ rol: 'ghiocel', text: raspunsBackend.data.raspuns })
+    istoricMesaje.value.push({ rol: 'ghiocel', text: raspunsBackend.data.mesaj })
 
   } catch (eroare) {
     console.error("Eroare la conectarea cu Spring Boot:", eroare)

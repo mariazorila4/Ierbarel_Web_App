@@ -1,15 +1,19 @@
 package com.zmc.ierbar_web_app.repositories;
 
-import com.zmc.ierbar_web_app.models.user.*;
-import com.zmc.ierbar_web_app.models.simple_factory.Planta;
-import com.zmc.ierbar_web_app.models.factory.PlantaFactory;
-import com.zmc.ierbar_web_app.models.factory.CategoriePlanta;
-import com.zmc.ierbar_web_app.models.simple_factory.TipPlanta;
+import java.util.List;
 
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
-import java.util.List;
+
+import com.zmc.ierbar_web_app.models.factory.CategoriePlanta;
+import com.zmc.ierbar_web_app.models.factory.PlantaFactory;
+import com.zmc.ierbar_web_app.models.simple_factory.Planta;
+import com.zmc.ierbar_web_app.models.simple_factory.TipPlanta;
+import com.zmc.ierbar_web_app.models.user.Admin;
+import com.zmc.ierbar_web_app.models.user.General;
+import com.zmc.ierbar_web_app.models.user.MesajChat;
+import com.zmc.ierbar_web_app.models.user.TipUser;
 
 @Repository
 public class UserRepository {
@@ -19,7 +23,7 @@ public class UserRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public General cautaUserDupaEmail(String email){
+   public General cautaUserDupaEmail(String email){
         String sqlUser="SELECT * FROM users WHERE email=?";
 
         try{
@@ -30,6 +34,10 @@ public class UserRepository {
                 g.setUsername(rs.getString("username"));
                 g.setEmail(rs.getString("email"));
                 g.setPassword(rs.getString("password"));
+                
+                if(rs.getString("tip_user") != null) {
+                    g.setTip_user(TipUser.valueOf(rs.getString("tip_user")));
+                }
 
                 return g;
             }, email);
@@ -38,9 +46,9 @@ public class UserRepository {
         }
     }
 
-    public void salveazaUserNou(String username, String email, String parolaCriptata){
-        String sql="INSERT INTO users (username, password, email, tip_user) VALUES (?, ?, ?, ?)";
-        jdbcTemplate.update(sql, username, parolaCriptata, email);
+    public void salveazaUserNou(String username, String email, String parolaCriptata, TipUser tipUser){
+        String sql="INSERT INTO users (username, password, email, tip_user) VALUES (?, ?, ?, ?::tip_user)";
+        jdbcTemplate.update(sql, username, parolaCriptata, email, tipUser.name());
     }
 
     public General extrageProfilGeneral(int idUser){

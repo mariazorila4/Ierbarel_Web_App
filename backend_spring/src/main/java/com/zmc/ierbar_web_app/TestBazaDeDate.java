@@ -1,12 +1,12 @@
 package com.zmc.ierbar_web_app;
 
-import com.zmc.ierbar_web_app.models.user.General;
-import com.zmc.ierbar_web_app.models.simple_factory.Planta;
-import com.zmc.ierbar_web_app.repositories.UserRepository;
-
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+
+import com.zmc.ierbar_web_app.models.simple_factory.Planta;
+import com.zmc.ierbar_web_app.models.user.General;
+import com.zmc.ierbar_web_app.repositories.UserRepository;
 
 @Component
 public class TestBazaDeDate implements CommandLineRunner {
@@ -45,7 +45,7 @@ public class TestBazaDeDate implements CommandLineRunner {
         
         try {
             // Încercăm să extragem utilizatorul cu ID-ul 1
-            int idDeTest = 1; 
+            int idDeTest = 2; 
             General user = userRepository.extrageProfilGeneral(idDeTest);
 
             if (user != null) {

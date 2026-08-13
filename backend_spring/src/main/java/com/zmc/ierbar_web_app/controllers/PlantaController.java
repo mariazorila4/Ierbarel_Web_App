@@ -1,19 +1,27 @@
 package com.zmc.ierbar_web_app.controllers;
 
-import com.zmc.ierbar_web_app.models.factory.*;
-import com.zmc.ierbar_web_app.models.simple_factory.*;
-import com.zmc.ierbar_web_app.repositories.PlantaRepository;
-import com.zmc.ierbar_web_app.servicies.PlantaService;
-
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.zmc.ierbar_web_app.models.factory.CategoriePlanta;
+import com.zmc.ierbar_web_app.models.factory.PlantaFactory;
+import com.zmc.ierbar_web_app.models.simple_factory.Planta;
+import com.zmc.ierbar_web_app.models.simple_factory.TipPlanta;
+import com.zmc.ierbar_web_app.repositories.PlantaRepository;
+import com.zmc.ierbar_web_app.servicies.PlantaService;
+
 @RestController
 @RequestMapping("/api/plante")
-@CrossOrigin(origins="*")
+@CrossOrigin(origins={"http://localhost:5173", "[http://127.0.0.1:5173](http://127.0.0.1:5173)"})
 public class PlantaController {
     private final PlantaRepository plantaRepository;
     private final PlantaService plantaService;

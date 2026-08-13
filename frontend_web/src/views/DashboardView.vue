@@ -129,7 +129,7 @@ const deconectare = () => {
 /* Grila care așează cardurile pe 3 coloane (sau 1 pe telefon) */
 .grid-actiuni {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
   gap: 20px;
 }
 
