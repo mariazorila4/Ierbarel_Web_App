@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -13,6 +14,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 
 import com.zmc.ierbar_web_app.models.user.MesajChat;
 
@@ -32,6 +36,35 @@ public class AgentAIService {
         this.jdbcTemplate = jdbcTemplate;
         this.restTemplate = new RestTemplate();
         this.objectMapper = objectMapper;
+    }
+
+    public String detecteazaPlantaYOLO(MultipartFile file) {
+        String urlPython = "http://localhost:5000/predict";
+
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+            ByteArrayResource fileResource = new ByteArrayResource(file.getBytes()) {
+                @Override
+                public String getFilename() {
+                    return file.getOriginalFilename();
+                }
+            };
+
+            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+            body.add("file", fileResource);
+
+            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+
+            ResponseEntity<String> response = restTemplate.postForEntity(urlPython, requestEntity, String.class);
+            JsonNode root = objectMapper.readTree(response.getBody());
+
+            return root.path("clasa").asText();
+        } catch (Exception e) {
+            System.err.println("Eroare la apelul Python YOLO: " + e.getMessage());
+            return null;
+        }
     }
 
     public MesajChat proceseazaConversatia(int userId, String textUtilizator) {

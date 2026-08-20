@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -13,7 +14,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.zmc.ierbar_web_app.models.factory.CategoriePlanta;
 import com.zmc.ierbar_web_app.models.factory.PlantaFactory;
@@ -34,8 +37,8 @@ public class PlantaController {
 
     public PlantaController(PlantaRepository plantaRepository, UserRepository userRepository, PlantaService plantaService) {
         this.plantaRepository = plantaRepository;
-        this.userRepository=userRepository;
-        this.plantaService=plantaService;
+        this.userRepository = userRepository;
+        this.plantaService = plantaService;
     }
 
     @GetMapping
@@ -100,24 +103,26 @@ public class PlantaController {
         }
     }
 
-    @PostMapping("/scaneaza")
-    public ResponseEntity<?> scaneazaImagineYOLO(@RequestBody Map<String,String> payload){
+    @PostMapping(value = "/scaneaza", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> scaneazaImagineYOLO(@RequestParam("file") MultipartFile file,
+                                                 @RequestParam("user_id") int userId){
         try{
-            String urlImagine=payload.get("image_url");
-            int userId=Integer.parseInt(payload.get("user_id"));
+            if (file.isEmpty()) {
+                return ResponseEntity.badRequest().body("Fișierul încărcat este gol.");
+            }
 
-            Planta plantaRecunoscuta=plantaService.recunoasteSiAdaugPlanta(urlImagine, userId);
+            Planta plantaRecunoscuta = plantaService.recunoasteSiAdaugPlanta(file, userId);
 
             return ResponseEntity.ok(plantaRecunoscuta);
         }catch(Exception e){
-            return ResponseEntity.badRequest().body("Eroare la procesarea YOLO: "+e.getMessage());
+            return ResponseEntity.badRequest().body("Eroare la procesarea YOLO: " + e.getMessage());
         }
     }
 
     @PostMapping("/ierbar-personal/{plantaId}")
     public ResponseEntity<?> salveazaPlanta(@PathVariable int plantaId, Principal principal){
-        General user=userRepository.cautaUserDupaEmail(principal.getName());
-        if(user==null){
+        General user = userRepository.cautaUserDupaEmail(principal.getName());
+        if(user == null){
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
@@ -128,8 +133,8 @@ public class PlantaController {
 
     @DeleteMapping("/ierbar-personal/{plantaId}")
     public ResponseEntity<?> stergePlantaDinIerbar(@PathVariable int plantaId, Principal principal){
-        General user=userRepository.cautaUserDupaEmail(principal.getName());
-        if(user==null){
+        General user = userRepository.cautaUserDupaEmail(principal.getName());
+        if(user == null){
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
