@@ -37,7 +37,7 @@
             <h3>{{ planta.nume_uzual }}</h3>
             <p class="nume-stiintific">{{ planta.denumire_stiintifica }}</p>
             
-            <button class="btn-favorite" @click.stop="adaugaLaFavorite(planta.id)" title="Salvează în Ierbarul Meu">
+            <button class="btn-favorite" @click.stop="adaugaLaFavorite(planta)" title="Salvează în Ierbarul Meu">
               ❤️ Salvează
             </button>
           </div>
@@ -113,9 +113,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+
+// Injectăm serviciul global de notificări
+const notificare = inject('notificare')
 
 const router = useRouter()
 const mergiInapoi = () => router.push('/dashboard')
@@ -149,16 +152,35 @@ onMounted(async () => {
   }
 })
 
-const adaugaLaFavorite = async (plantaId) => {
+// Adăugare la favorite folosind NotificationModal
+const adaugaLaFavorite = async (planta) => {
   try {
     const token = localStorage.getItem('jwt_token')
-    const raspuns = await axios.post(`http://localhost:8080/api/plante/ierbar-personal/${plantaId}`, {}, {
+    const raspuns = await axios.post(`http://localhost:8080/api/plante/ierbar-personal/${planta.id}`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
-    alert("🌿 " + raspuns.data.mesaj)
+    
+    await notificare({
+      titlu: "Plantă Salvată! 🌸",
+      mesaj: raspuns.data.mesaj || `"${planta.nume_uzual}" a fost adăugată în Ierbarul tău personal!`,
+      tip: "success"
+    })
+
   } catch (eroare) {
     console.error("Eroare la salvare:", eroare)
-    alert("A apărut o eroare la salvarea plantei.")
+    
+    let mesajEroare = "A apărut o eroare la salvarea plantei."
+    if (eroare.response && eroare.response.data) {
+      mesajEroare = typeof eroare.response.data === 'object' 
+        ? JSON.stringify(eroare.response.data, null, 2) 
+        : eroare.response.data
+    }
+
+    await notificare({
+      titlu: "Eroare la Salvare",
+      mesaj: mesajEroare,
+      tip: "error"
+    })
   }
 }
 
@@ -224,14 +246,13 @@ const planteFiltrate = computed(() => {
   display: flex; 
   flex-direction: column; 
   max-height: 85vh; 
-  overflow-y: auto; /* SCROLL-UL ESTE ACUM PE TOATĂ FEREASTRA */
+  overflow-y: auto;
   overflow-x: hidden;
   box-shadow: 0 20px 50px rgba(0,0,0,0.3); 
   animation: popUp 0.3s ease-out forwards; 
 }
 @keyframes popUp { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 
-/* Scrollbar personalizat aplicat întregului modal */
 .modal-content::-webkit-scrollbar { width: 6px; }
 .modal-content::-webkit-scrollbar-thumb { background-color: var(--verde-deschis); border-radius: 10px; }
 .modal-content::-webkit-scrollbar-track { background: transparent; }
@@ -248,22 +269,21 @@ const planteFiltrate = computed(() => {
 
 .header-imagine { 
   width: 100%; 
-  height: 500px; /* Înălțime mai bună și echilibrată */
+  height: 500px; 
   flex-shrink: 0; 
   background: #f0f0f0; 
-  border-radius: 16px 16px 0 0; /* Colțuri rotunjite sus */
+  border-radius: 16px 16px 0 0; 
 }
 .poza-banner { 
   width: 100%; 
   height: 100%; 
   object-fit: cover; 
-  border-radius: 16px 16px 0 0; /* Aplicăm rotunjirea și direct pe imagine */
+  border-radius: 16px 16px 0 0; 
 }
 
 .detalii-text { 
   padding: 25px; 
   flex: 1; 
-  /* Am scos overflow-y de aici */
 }
 
 .nume-mare { margin: 0; color: var(--verde-inchis); font-size: 2rem; }

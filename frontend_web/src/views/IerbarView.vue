@@ -24,7 +24,7 @@
             <h3>{{ planta.nume_uzual }}</h3>
             <p class="nume-stiintific">{{ planta.denumire_stiintifica }}</p>
             
-            <button class="btn-stergere" @click.stop="stergePlanta(planta.id)">
+            <button class="btn-stergere" @click.stop="stergePlanta(planta.id, planta.nume_uzual)">
               🗑️ Șterge
             </button>
           </div>
@@ -100,9 +100,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+
+// Injectăm serviciul global de notificări
+const notificare = inject('notificare')
 
 const router = useRouter()
 const mergiInapoi = () => router.push('/dashboard')
@@ -138,8 +141,16 @@ onMounted(async () => {
   }
 })
 
-const stergePlanta = async (plantaId) => {
-  if (!confirm("Ești sigur că vrei să ștergi această plantă din colecția ta?")) return;
+// Ștergerea unei plante favorite folosind mini-cardul NotificationModal
+const stergePlanta = async (plantaId, numePlanta) => {
+  const vreaSaSterga = await notificare({
+    titlu: "Eliminare din Ierbar",
+    mesaj: `Ești sigur că vrei să elimini "${numePlanta || 'această plantă'}" din colecția ta personală?`,
+    tip: "error",
+    esteConfirmare: true
+  })
+
+  if (!vreaSaSterga) return
 
   try {
     const token = localStorage.getItem('jwt_token')
@@ -149,9 +160,27 @@ const stergePlanta = async (plantaId) => {
     
     planteleMele.value = planteleMele.value.filter(planta => planta.id !== plantaId)
     
+    await notificare({
+      titlu: "Plantă Eliminată 🌿",
+      mesaj: "Planta a fost ștearsă din colecția ta cu succes.",
+      tip: "success"
+    })
+    
   } catch (eroare) {
     console.error("Eroare la ștergere:", eroare)
-    alert("Nu am putut șterge planta.")
+    
+    let mesajEroare = "Nu am putut șterge planta din ierbarul personal."
+    if (eroare.response && eroare.response.data) {
+      mesajEroare = typeof eroare.response.data === 'object' 
+        ? JSON.stringify(eroare.response.data, null, 2) 
+        : eroare.response.data
+    }
+
+    await notificare({
+      titlu: "Eroare la Ștergere",
+      mesaj: mesajEroare,
+      tip: "error"
+    })
   }
 }
 </script>
@@ -169,7 +198,7 @@ const stergePlanta = async (plantaId) => {
 .grila-plante { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 25px; }
 .card-planta { background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 2px solid var(--crem-fundal); transition: transform 0.3s ease; cursor: pointer; }
 .card-planta:hover { transform: translateY(-5px); border-color: var(--albastru-pastel); }
-.poza-planta { width: 100%; height: 180px; object-fit: cover; } /* Aici e poza din grila mica */
+.poza-planta { width: 100%; height: 180px; object-fit: cover; }
 .info-planta { padding: 15px; text-align: center; }
 .info-planta h3 { margin: 0; color: var(--verde-inchis); }
 .nume-stiintific { color: #888; font-style: italic; font-size: 0.9rem; margin: 5px 0 10px 0; }
@@ -203,14 +232,13 @@ const stergePlanta = async (plantaId) => {
   display: flex; 
   flex-direction: column; 
   max-height: 85vh; 
-  overflow-y: auto; /* SCROLL-UL ESTE ACUM PE TOATĂ FEREASTRA */
+  overflow-y: auto;
   overflow-x: hidden;
   box-shadow: 0 20px 50px rgba(0,0,0,0.3); 
   animation: popUp 0.3s ease-out forwards; 
 }
 @keyframes popUp { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 
-/* Scrollbar personalizat aplicat întregului modal */
 .modal-content::-webkit-scrollbar { width: 6px; }
 .modal-content::-webkit-scrollbar-thumb { background-color: var(--verde-deschis); border-radius: 10px; }
 .modal-content::-webkit-scrollbar-track { background: transparent; }
@@ -227,22 +255,21 @@ const stergePlanta = async (plantaId) => {
 
 .header-imagine { 
   width: 100%; 
-  height: 500px; /* Înălțime mai bună și echilibrată */
+  height: 500px; 
   flex-shrink: 0; 
   background: #f0f0f0; 
-  border-radius: 16px 16px 0 0; /* Colțuri rotunjite sus */
+  border-radius: 16px 16px 0 0; 
 }
 .poza-banner { 
   width: 100%; 
   height: 100%; 
   object-fit: cover; 
-  border-radius: 16px 16px 0 0; /* Aplicăm rotunjirea și direct pe imagine */
+  border-radius: 16px 16px 0 0; 
 }
 
 .detalii-text { 
   padding: 25px; 
   flex: 1; 
-  /* Am scos overflow-y de aici */
 }
 
 .nume-mare { margin: 0; color: var(--verde-inchis); font-size: 2rem; }

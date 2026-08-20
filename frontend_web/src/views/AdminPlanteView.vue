@@ -193,9 +193,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+
+// Injectăm serviciul global de notificări
+const notificare = inject('notificare')
 
 const router = useRouter()
 const mergiInapoi = () => router.push('/admin-dashboard')
@@ -321,18 +324,30 @@ const salveazaPlanta = async () => {
     }
 
     if (modEditare.value) {
-      // 🟢 CERERE PUT PENTRU EDITARE
+      // 🟢 PUT pentru editare
       const raspuns = await axios.put(`http://localhost:8080/api/plante/admin/${formPlanta.value.id}`, datePlantaJava, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
-      alert("✏️ " + raspuns.data) 
+      
+      await notificare({
+        titlu: "Specie Modificată",
+        mesaj: raspuns.data || "Informațiile plantei au fost actualizate cu succes!",
+        tip: "success"
+      })
+      
       incarcaPlante() 
     } else {
-      // 🟢 CERERE POST PENTRU ADĂUGARE
+      // 🟢 POST pentru adăugare
       const raspuns = await axios.post(`http://localhost:8080/api/plante/admin/${adminId}`, datePlantaJava, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
-      alert("🌿 " + raspuns.data) 
+      
+      await notificare({
+        titlu: "Specie Adăugată! 🌿",
+        mesaj: raspuns.data || "Planta a fost salvată cu succes în Baza de Date.",
+        tip: "success"
+      })
+      
       incarcaPlante() 
     }
     
@@ -340,35 +355,62 @@ const salveazaPlanta = async () => {
   } catch (eroare) {
     console.error("Eroare la salvarea plantei:", eroare)
     
+    let mesajEroare = "Nu am putut contacta serverul."
     if (eroare.response && eroare.response.data) {
-      alert("🛑 Eroare din Java:\n" + eroare.response.data)
-    } else {
-      alert("Nu am putut contacta serverul.")
+      mesajEroare = typeof eroare.response.data === 'object' 
+        ? JSON.stringify(eroare.response.data, null, 2) 
+        : eroare.response.data
     }
+
+    await notificare({
+      titlu: "Eroare la Salvare",
+      mesaj: mesajEroare,
+      tip: "error"
+    })
   }
 }
 
-// 🟢 FUNCȚIA DE ȘTERGERE REALĂ
+// 🟢 Ștergere cu confirmare prin NotificationModal
 const stergePlanta = async (id) => {
-  if(confirm('Ești sigur că vrei să ștergi definitiv această plantă din Baza de Date?')) {
-    try {
-      const token = localStorage.getItem('jwt_token')
-      
-      const raspuns = await axios.delete(`http://localhost:8080/api/plante/admin/${id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      
-      alert("🗑️ " + raspuns.data)
-      incarcaPlante() // Actualizăm lista instantaneu pe ecran
-      
-    } catch (eroare) {
-      console.error("Eroare la ștergerea plantei:", eroare)
-      if (eroare.response && eroare.response.data) {
-        alert("🛑 Eroare la ștergere:\n" + eroare.response.data)
-      } else {
-        alert("A apărut o problemă la ștergerea plantei.")
-      }
+  const vreaSaSterga = await notificare({
+    titlu: "Ștergere Definitivă",
+    mesaj: "Ești sigur că vrei să ștergi această plantă din Baza de Date? Această acțiune nu poate fi anulată.",
+    tip: "error",
+    esteConfirmare: true
+  })
+
+  if (!vreaSaSterga) return
+
+  try {
+    const token = localStorage.getItem('jwt_token')
+    
+    const raspuns = await axios.delete(`http://localhost:8080/api/plante/admin/${id}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    
+    await notificare({
+      titlu: "Șters cu Succes",
+      mesaj: raspuns.data || "Planta a fost eliminată definitiv.",
+      tip: "success"
+    })
+
+    incarcaPlante() // Reîncărcăm grila
+    
+  } catch (eroare) {
+    console.error("Eroare la ștergerea plantei:", eroare)
+    
+    let mesajEroare = "A apărut o problemă la ștergere."
+    if (eroare.response && eroare.response.data) {
+      mesajEroare = typeof eroare.response.data === 'object' 
+        ? JSON.stringify(eroare.response.data, null, 2) 
+        : eroare.response.data
     }
+
+    await notificare({
+      titlu: "Eroare la Ștergere",
+      mesaj: mesajEroare,
+      tip: "error"
+    })
   }
 }
 </script>
