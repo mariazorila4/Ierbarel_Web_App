@@ -60,7 +60,7 @@ public class PlantaController {
             String poateFiUscata = datePlanta.get("poate_fi_uscata");
             String cicluDeViata = datePlanta.get("ciclu_de_viata");
             String tipPlanta = datePlanta.get("tip_planta");
-            String locatie=datePlanta.get("locatie");
+            String locatie = datePlanta.get("locatie");
             String imagineUrl = datePlanta.get("imagine_url");
             String nrPetale = datePlanta.get("numar_petale");
             String culoare = datePlanta.get("culoare");
@@ -155,62 +155,9 @@ public class PlantaController {
         }
     }
 
-
     @PostMapping(value = "/scaneaza", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> scaneazaImagineYOLO(@RequestParam("file") MultipartFile file,
                                                  @RequestParam("user_id") int userId){
-
-    @DeleteMapping("/admin/{id}")
-    public ResponseEntity<String> stergePlanta(@PathVariable("id") int id){
-        try{
-            plantaRepository.stergePlantaDefinitiv(id);
-            return ResponseEntity.ok("Planta a fost stearsa cu succes!");
-        }catch(Exception e){
-            return ResponseEntity.badRequest().body("Eroare la stergere: "+e.getMessage());
-        }
-    }
-
-    @PutMapping("/admin/{id}")
-    public ResponseEntity<String> editeazaPlanta(@PathVariable("id") int id, @RequestBody Map<String, String> datePlanta) {
-        try {
-            String categorie = datePlanta.get("categorie_planta");
-            String numeUzual = datePlanta.get("nume_uzual");
-            String denumireStiintifica = datePlanta.get("denumire_stiintifica");
-            String familie = datePlanta.get("familie");
-            String descriere = datePlanta.get("descriere");
-            String locatie = datePlanta.get("locatie");
-            String imagineUrl = datePlanta.get("imagine_url");
-            float inaltime = Float.parseFloat(datePlanta.get("inaltime_maxima"));
-            String perioadaInflorire = datePlanta.get("perioada_inflorire");
-            boolean poateFiUscata = Boolean.parseBoolean(datePlanta.get("poate_fi_uscata"));
-            String cicluViata = datePlanta.get("ciclu_de_viata");
-            TipPlanta tipPlanta = TipPlanta.valueOf(datePlanta.get("tip_planta"));
-            int nrPetale = Integer.parseInt(datePlanta.getOrDefault("numar_petale", "0"));
-            String culoare = datePlanta.getOrDefault("culoare", "-");
-            String tipCoroana = datePlanta.getOrDefault("tip_coroana", "-");
-            String tipFrunza = datePlanta.getOrDefault("tip_frunza", "-");
-            boolean pomFructifer = Boolean.parseBoolean(datePlanta.getOrDefault("pom_fructifer", "false"));
-            boolean produceFructe = Boolean.parseBoolean(datePlanta.getOrDefault("produce_fructe", "false"));
-            String tipTulpina = datePlanta.getOrDefault("tip_tulpina", "-");
-
-            PlantaFactory fabrica = new PlantaFactory();
-            Planta plantaActualizata = fabrica.creazaPlanta(CategoriePlanta.valueOf(categorie), id, numeUzual, 
-                    denumireStiintifica, familie, descriere, inaltime, perioadaInflorire, cicluViata, tipPlanta, 
-                    locatie, imagineUrl, nrPetale, culoare, tipCoroana, tipFrunza, pomFructifer, produceFructe, 
-                    tipTulpina, poateFiUscata);
-
-            plantaRepository.actualizeazaPlanta(id, plantaActualizata, locatie, imagineUrl, nrPetale, culoare, 
-                    tipCoroana, tipFrunza, pomFructifer, produceFructe, tipTulpina);
-
-            return ResponseEntity.ok("Planta a fost actualizată cu succes!");
-
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Eroare la actualizarea plantei: " + e.getMessage());
-        }
-    }
-
-    @PostMapping("/scaneaza")
-    public ResponseEntity<?> scaneazaImagineYOLO(@RequestBody Map<String,String> payload){
         try{
             if (file.isEmpty()) {
                 return ResponseEntity.badRequest().body("Fișierul încărcat este gol.");
