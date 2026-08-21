@@ -31,13 +31,13 @@
           class="card-planta"
           @click="deschideDetalii(planta)"
         >
-          <img :src="planta.imagine_url || 'https://images.unsplash.com/photo-1628808168235-96bece30fc6e?w=500&q=80'" :alt="planta.nume_uzual" class="poza-planta" />
+          <img :src="planta.imagine_url || 'https://images.unsplash.com/photo-1628808168235-96bece30fc6e?w=500'" :alt="planta.nume_uzual" class="poza-planta" />
           
           <div class="info-planta">
             <h3>{{ planta.nume_uzual }}</h3>
             <p class="nume-stiintific">{{ planta.denumire_stiintifica }}</p>
             
-            <button class="btn-favorite" @click.stop="adaugaLaFavorite(planta.id)" title="Salvează în Ierbarul Meu">
+            <button class="btn-favorite" @click.stop="adaugaLaFavorite(planta)" title="Salvează în Ierbarul Meu">
               ❤️ Salvează
             </button>
           </div>
@@ -45,51 +45,66 @@
       </div>
     </div>
 
-    <!-- Fereastra Modală -->
+    <!-- Fereastra Modală cu Scroll Global -->
     <div v-if="plantaSelectata" class="modal-overlay" @click.self="inchideDetalii">
       <div class="modal-content">
         <button class="btn-inchide" @click="inchideDetalii">✖</button>
-        <div class="modal-layout">
-          <img :src="plantaSelectata.imagine_url || 'https://images.unsplash.com/photo-1628808168235-96bece30fc6e?w=500&q=80'" class="poza-detaliu" />
-          <div class="detalii-text">
-            <h2 class="nume-mare">{{ plantaSelectata.nume_uzual }}</h2>
-            <p class="nume-stiintific-mare">{{ plantaSelectata.denumire_stiintifica }}</p>
+        
+        <div class="header-imagine">
+          <img :src="plantaSelectata.imagine_url || 'https://images.unsplash.com/photo-1628808168235-96bece30fc6e?w=500'" class="poza-banner" />
+        </div>
+
+        <div class="detalii-text">
+          <h2 class="nume-mare">{{ plantaSelectata.nume_uzual }}</h2>
+          <p class="nume-stiintific-mare">{{ plantaSelectata.denumire_stiintifica }}</p>
+          <hr class="separator-modal" />
+          
+          <div class="info-grid">
+            <p><strong>🌿 Familie:</strong> {{ plantaSelectata.familie }}</p>
+            <p><strong>📂 Categorie:</strong> {{ plantaSelectata.categorie_planta }}</p>
+            <p><strong>🌸 Înflorire:</strong> {{ plantaSelectata.perioada_inflorire }}</p>
+            <p><strong>🌱 Ciclu de viață:</strong> {{ plantaSelectata.ciclu_de_viata }}</p>
+            <p><strong>🏷️ Tip plantă:</strong> {{ plantaSelectata.tip_planta }}</p>
+            <p><strong>📏 Înălțime max:</strong> {{ plantaSelectata.inaltime_maxima }} metri</p>
+            <p><strong>🍂 Poate fi uscată:</strong> {{ plantaSelectata.poate_fi_uscata ? 'Da' : 'Nu' }}</p>
+
+            <template v-if="plantaSelectata.categorie_planta === 'FLOARE'">
+              <p><strong>🌸 Nr. Petale:</strong> {{ plantaSelectata.numar_petale }}</p>
+              <p><strong>🎨 Culoare:</strong> {{ plantaSelectata.culoare }}</p>
+            </template>
+            <template v-if="plantaSelectata.categorie_planta === 'ARBORE'">
+              <p><strong>🌳 Coroană:</strong> {{ plantaSelectata.tip_coroana }}</p>
+              <p><strong>🍃 Frunză:</strong> {{ plantaSelectata.tip_frunza }}</p>
+              <p><strong>🍎 Pom fructifer:</strong> {{ plantaSelectata.pom_fructifer ? 'Da' : 'Nu' }}</p>
+            </template>
+            <template v-if="plantaSelectata.categorie_planta === 'ARBUST'">
+              <p><strong>🍒 Produce fructe:</strong> {{ plantaSelectata.produce_fructe ? 'Da' : 'Nu' }}</p>
+            </template>
+            <template v-if="plantaSelectata.categorie_planta === 'IERBURI'">
+              <p><strong>🌾 Tip tulpină:</strong> {{ plantaSelectata.tip_tulpina }}</p>
+            </template>
+          </div>
+
+          <div class="sectiune-descriere">
+            <h4>Descriere:</h4>
+            <p>{{ plantaSelectata.descriere }}</p>
+          </div>
+
+          <div v-if="plantaSelectata.locatie" class="sectiune-habitat-harta">
             <hr class="separator-modal" />
-            
-            <div class="info-grid">
-              <p><strong>🌿 Familie:</strong> {{ plantaSelectata.familie }}</p>
-              <p><strong>📂 Categorie:</strong> {{ plantaSelectata.categorie_planta }}</p>
-              <p><strong>🌸 Înflorire:</strong> {{ plantaSelectata.perioada_inflorire }}</p>
-              <p><strong>🌱 Ciclu de viață:</strong> {{ plantaSelectata.ciclu_de_viata }}</p>
-              <p><strong>🏷️ Tip plantă:</strong> {{ plantaSelectata.tip_planta }}</p>
-              <p><strong>📏 Înălțime max:</strong> {{ plantaSelectata.inaltime_maxima }} metri</p>
-              <p><strong>🍂 Poate fi uscată:</strong> {{ plantaSelectata.poate_fi_uscata ? 'Da' : 'Nu' }}</p>
+            <h4>🌍 Habitat Natural:</h4>
+            <p class="text-habitat">{{ plantaSelectata.locatie }}</p>
 
-              <!-- Condiții specifice pentru fiecare categorie -->
-              <template v-if="plantaSelectata.categorie_planta === 'FLOARE'">
-                <p><strong>🌸 Nr. Petale:</strong> {{ plantaSelectata.numar_petale }}</p>
-                <p><strong>🎨 Culoare:</strong> {{ plantaSelectata.culoare }}</p>
-              </template>
-
-              <template v-if="plantaSelectata.categorie_planta === 'ARBORE'">
-                <p><strong>🌳 Coroană:</strong> {{ plantaSelectata.tip_coroana }}</p>
-                <p><strong>🍃 Frunză:</strong> {{ plantaSelectata.tip_frunza }}</p>
-                <p><strong>🍎 Pom fructifer:</strong> {{ plantaSelectata.pom_fructifer ? 'Da' : 'Nu' }}</p>
-              </template>
-
-              <template v-if="plantaSelectata.categorie_planta === 'ARBUST'">
-                <p><strong>🍒 Produce fructe:</strong> {{ plantaSelectata.produce_fructe ? 'Da' : 'Nu' }}</p>
-              </template>
-
-              <template v-if="plantaSelectata.categorie_planta === 'IERBURI'">
-                <p><strong>🌾 Tip tulpină:</strong> {{ plantaSelectata.tip_tulpina }}</p>
-              </template>
-            </div>
-
-            <div class="sectiune-descriere">
-              <h4>Descriere:</h4>
-              <p>{{ plantaSelectata.descriere }}</p>
-            </div>
+            <h4 class="titlu-harta">📍 Locații pe Hartă:</h4>
+            <iframe 
+              width="100%" 
+              height="250" 
+              frameborder="0" 
+              class="harta-iframe"
+              :src="'https://maps.google.com/maps?q=' + encodeURIComponent(plantaSelectata.locatie) + '&output=embed'" 
+              allowfullscreen>
+            </iframe>
+            <p class="nota-comunitate"><em>* În curând: Aici vor apărea locațiile exacte în care alți pasionați au descoperit această plantă! 🌿</em></p>
           </div>
         </div>
       </div>
@@ -98,9 +113,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+
+// Injectăm serviciul global de notificări
+const notificare = inject('notificare')
 
 const router = useRouter()
 const mergiInapoi = () => router.push('/dashboard')
@@ -134,16 +152,35 @@ onMounted(async () => {
   }
 })
 
-const adaugaLaFavorite = async (plantaId) => {
+// Adăugare la favorite folosind NotificationModal
+const adaugaLaFavorite = async (planta) => {
   try {
     const token = localStorage.getItem('jwt_token')
-    const raspuns = await axios.post(`http://localhost:8080/api/plante/ierbar-personal/${plantaId}`, {}, {
+    const raspuns = await axios.post(`http://localhost:8080/api/plante/ierbar-personal/${planta.id}`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
-    alert("🌿 " + raspuns.data.mesaj)
+    
+    await notificare({
+      titlu: "Plantă Salvată! 🌸",
+      mesaj: raspuns.data.mesaj || `"${planta.nume_uzual}" a fost adăugată în Ierbarul tău personal!`,
+      tip: "success"
+    })
+
   } catch (eroare) {
     console.error("Eroare la salvare:", eroare)
-    alert("A apărut o eroare la salvarea plantei.")
+    
+    let mesajEroare = "A apărut o eroare la salvarea plantei."
+    if (eroare.response && eroare.response.data) {
+      mesajEroare = typeof eroare.response.data === 'object' 
+        ? JSON.stringify(eroare.response.data, null, 2) 
+        : eroare.response.data
+    }
+
+    await notificare({
+      titlu: "Eroare la Salvare",
+      mesaj: mesajEroare,
+      tip: "error"
+    })
   }
 }
 
@@ -159,6 +196,7 @@ const planteFiltrate = computed(() => {
 </script>
 
 <style scoped>
+/* CSS PENTRU PAGINĂ */
 .page-wrapper { display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; padding: 40px 20px; }
 .glass-card { background: rgba(255, 255, 255, 0.9); padding: 2.5rem; border-radius: 20px; border: 3px solid var(--verde-inchis); width: 100%; box-shadow: 0 8px 25px rgba(0,0,0,0.05); }
 .full-card { max-width: 1000px; } 
@@ -181,20 +219,88 @@ const planteFiltrate = computed(() => {
 .nume-stiintific { color: #888; font-style: italic; font-size: 0.9rem; margin: 5px 0 10px 0; }
 .btn-favorite { background: #ffebeb; color: #e74c3c; border: 1px solid #ffb3b3; padding: 8px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
 .btn-favorite:hover { background: #e74c3c; color: white; }
-.modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; z-index: 1000; padding: 20px; box-sizing: border-box; }
-.modal-content { background: var(--crem-fundal); width: 100%; max-width: 800px; border-radius: 20px; position: relative; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: popUp 0.3s ease-out forwards; }
+
+/* =========================================
+   NOUL CSS PENTRU MODAL (CU SCROLL GLOBAL)
+   ========================================= */
+.modal-overlay { 
+  position: fixed; 
+  top: 0; left: 0; 
+  width: 100vw; height: 100vh; 
+  background: rgba(0, 0, 0, 0.7); 
+  backdrop-filter: blur(5px); 
+  display: flex; 
+  justify-content: center; 
+  align-items: center; 
+  z-index: 9999; 
+  padding: 20px; 
+  box-sizing: border-box;
+}
+
+.modal-content { 
+  background: #ffffff; 
+  width: 100%; 
+  max-width: 550px; 
+  border-radius: 16px; 
+  position: relative; 
+  display: flex; 
+  flex-direction: column; 
+  max-height: 85vh; 
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.3); 
+  animation: popUp 0.3s ease-out forwards; 
+}
 @keyframes popUp { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-.btn-inchide { position: absolute; top: 15px; right: 15px; background: white; border: none; border-radius: 50%; width: 35px; height: 35px; font-size: 1.2rem; color: #555; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 10; transition: 0.3s; }
+
+.modal-content::-webkit-scrollbar { width: 6px; }
+.modal-content::-webkit-scrollbar-thumb { background-color: var(--verde-deschis); border-radius: 10px; }
+.modal-content::-webkit-scrollbar-track { background: transparent; }
+
+.btn-inchide { 
+  position: absolute; top: 15px; right: 15px; 
+  background: rgba(255, 255, 255, 0.9); border: none; border-radius: 50%; 
+  width: 36px; height: 36px; font-size: 1.2rem; color: #333; 
+  cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.2); 
+  z-index: 10; display: flex; justify-content: center; align-items: center; 
+  transition: 0.2s; 
+}
 .btn-inchide:hover { background: #fee; color: #e74c3c; transform: scale(1.1); }
-.modal-layout { display: flex; flex-direction: row; }
-.poza-detaliu { width: 45%; object-fit: cover; min-height: 300px; }
-.detalii-text { padding: 30px; width: 55%; box-sizing: border-box; background: white; border-radius: 20px 0 0 20px; }
+
+.header-imagine { 
+  width: 100%; 
+  height: 500px; 
+  flex-shrink: 0; 
+  background: #f0f0f0; 
+  border-radius: 16px 16px 0 0; 
+}
+.poza-banner { 
+  width: 100%; 
+  height: 100%; 
+  object-fit: cover; 
+  border-radius: 16px 16px 0 0; 
+}
+
+.detalii-text { 
+  padding: 25px; 
+  flex: 1; 
+}
+
 .nume-mare { margin: 0; color: var(--verde-inchis); font-size: 2rem; }
-.nume-stiintific-mare { color: #888; font-style: italic; font-size: 1.1rem; margin-top: 5px; }
+.nume-stiintific-mare { color: #888; font-style: italic; font-size: 1.05rem; margin-top: 5px; }
 .separator-modal { border: none; border-top: 1px solid #eee; margin: 15px 0; }
-.info-grid p { margin: 8px 0; color: #444; }
+
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.info-grid p { margin: 5px 0; color: #444; font-size: 0.9rem; }
 .info-grid strong { color: #333; }
-.sectiune-descriere h4 { margin: 20px 0 5px 0; color: var(--verde-inchis); }
-.sectiune-descriere p { color: #666; line-height: 1.6; font-size: 0.95rem; margin: 0; }
-@media (max-width: 768px) { .modal-layout { flex-direction: column; } .poza-detaliu { width: 100%; height: 250px; min-height: auto; } .detalii-text { width: 100%; border-radius: 0; padding: 20px; } }
+
+.sectiune-descriere h4 { margin: 20px 0 10px 0; color: var(--verde-inchis); }
+.sectiune-descriere p { color: #555; line-height: 1.6; font-size: 0.95rem; margin: 0; }
+
+.sectiune-habitat-harta h4 { margin: 20px 0 10px 0; color: var(--verde-inchis); }
+.text-habitat { color: #555; line-height: 1.5; font-size: 0.9rem; font-style: italic; margin: 0; background: #f4faeb; padding: 12px; border-left: 4px solid var(--verde-deschis); border-radius: 0 8px 8px 0; }
+.harta-iframe { border: 0; border-radius: 12px; margin-top: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+.nota-comunitate { font-size: 0.8rem; color: #888; text-align: center; margin-top: 10px; }
+
+@media (max-width: 500px) { .info-grid { grid-template-columns: 1fr; } .header-imagine { height: 250px; } }
 </style>

@@ -41,13 +41,16 @@ public abstract class Planta{
     @Column("categorie_planta") 
     protected CategoriePlanta categorie_planta;
 
+    @Column("locatie")
+    protected String locatie;
+
     @Column("imagine_url")
     protected String imagine_url;
 
     public Planta() {
     }
 
-    public Planta(int id, String nume_uzual, String denumire_stiintifica, String familie, String descriere, float inaltime_maxima, String perioada_inflorire, boolean poate_fi_uscata, String ciclu_de_viata, TipPlanta tip_planta, String imagine_url, CategoriePlanta categorie_planta) {
+    public Planta(int id, String nume_uzual, String denumire_stiintifica, String familie, String descriere, float inaltime_maxima, String perioada_inflorire, boolean poate_fi_uscata, String ciclu_de_viata, TipPlanta tip_planta, String locatie, String imagine_url, CategoriePlanta categorie_planta) {
         this.id = id;
         this.nume_uzual = nume_uzual;
         this.denumire_stiintifica = denumire_stiintifica;
@@ -58,6 +61,7 @@ public abstract class Planta{
         this.poate_fi_uscata = poate_fi_uscata;
         this.ciclu_de_viata = ciclu_de_viata;
         this.tip_planta = tip_planta;
+        this.locatie=locatie;
         this.imagine_url=imagine_url;
         this.categorie_planta = categorie_planta;
     }
@@ -176,4 +180,14 @@ public abstract class Planta{
     public void setImagine_url(String imagine_url) {
         this.imagine_url = imagine_url;
     }
+
+    public String getLocatie() {
+        return locatie;
+    }
+
+    public void setLocatie(String locatie) {
+        this.locatie = locatie;
+    }
+
+
 }

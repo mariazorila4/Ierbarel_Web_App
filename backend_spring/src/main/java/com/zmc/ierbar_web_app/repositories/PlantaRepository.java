@@ -22,7 +22,6 @@ public class PlantaRepository{
         String sqlPlante="SELECT * FROM plante";
 
         return jdbcTemplate.query(sqlPlante, (rs, rand)->{
-            // Corectat: Numele coloanei este "categorie_planta", nu "categorie"
             CategoriePlanta categoriePlanta= CategoriePlanta.valueOf(rs.getString("categorie_planta"));
             int idPlanta=rs.getInt("id");
             String numeUzual=rs.getString("nume_uzual");
@@ -34,6 +33,8 @@ public class PlantaRepository{
             String cicluDeViata=rs.getString("ciclu_de_viata");
             boolean poateFiUscata=rs.getBoolean("poate_fi_uscata");
             TipPlanta tipPlanta=TipPlanta.valueOf(rs.getString("tip_planta"));
+            String locatie=rs.getString("locatie");
+            String imagineUrl=rs.getString("imagine_url");
             int nrPetale=rs.getInt("numar_petale");
             String culoare=rs.getString("culoare");
             String tipCoroana=rs.getString("tip_coroana");
@@ -41,11 +42,10 @@ public class PlantaRepository{
             boolean pomFructifer=rs.getBoolean("pom_fructifer");
             boolean produceFructe=rs.getBoolean("produce_fructe");
             String tipTulpina=rs.getString("tip_tulpina");
-            String imagineUrl=rs.getString("imagine_url");
 
             PlantaFactory plantaFactory = new PlantaFactory();
             Planta p = plantaFactory.creazaPlanta(categoriePlanta, idPlanta, numeUzual, numeStiintific,
-                familie, descriere, inaltimeMaxima, perioadaInflorire, cicluDeViata, tipPlanta, imagineUrl,
+                familie, descriere, inaltimeMaxima, perioadaInflorire, cicluDeViata, tipPlanta, locatie, imagineUrl,
                 nrPetale, culoare, tipCoroana, tipFrunza, pomFructifer, produceFructe, tipTulpina, poateFiUscata);
 
             p.setId(idPlanta);
@@ -58,22 +58,77 @@ public class PlantaRepository{
             p.setPerioada_inflorire(perioadaInflorire);
             p.setCiclu_de_viata(cicluDeViata);
             p.setTip_planta(tipPlanta);
+            p.setLocatie(locatie);
             p.setImagine_url(imagineUrl);
 
             return p;
         });
     }
 
-    public void salveazaPlantaNoua(Planta planta, int idAdmin, String imagineUrl, int numarPetale, 
+    public void salveazaPlantaNoua(Planta planta, int adminId, String imagineUrl, int numarPetale, 
                                    String culoare, String tipCoroana, String tipFrunza, 
-                                   boolean pomFructifer, boolean produceFructe, String tipTulpina){
-                                   
-        // Corectat: admin_plant_id în loc de adaugat_de_admin_id
-        // Corectat: adăugat ::tip_planta și ::categorie_planta pentru ENUM-urile din PostgreSQL
-        String sql="INSERT INTO plante (nume_uzual, denumire_stiintifica, familie, descriere, inaltime_maxima, "+
-                   "perioada_inflorire, poate_fi_uscata, ciclu_de_viata, tip_planta, categorie_planta, numar_petale, "+
-                   "culoare, tip_coroana, tip_frunza, pom_fructifer, produce_fructe, tip_tulpina, admin_plant_id, imagine_url) " +
-                   "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::tip_planta, ?::categorie_planta, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                                   boolean pomFructifer, boolean produceFructe, String tipTulpina) {
+        
+        String sql = "INSERT INTO plante (nume_uzual, denumire_stiintifica, familie, descriere, inaltime_maxima, " +
+                     "perioada_inflorire, poate_fi_uscata, ciclu_de_viata, tip_planta, locatie, categorie_planta, " +
+                     "numar_petale, culoare, tip_coroana, tip_frunza, pom_fructifer, produce_fructe, tip_tulpina, " +
+                     "admin_plant_id, imagine_url) " +
+                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS tip_planta), ?, CAST(? AS categorie_planta), ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        
+        String categoriePlanta = planta.getClass().getSimpleName().toUpperCase();
+        
+        jdbcTemplate.update(sql, 
+            planta.getNume_uzual(), 
+            planta.getDenumire_stiintifica(), 
+            planta.getFamilie(), 
+            planta.getDescriere(),
+            planta.getInaltime_maxima(), 
+            planta.getPerioada_inflorire(), 
+            planta.isPoate_fi_uscata(), 
+            planta.getCiclu_de_viata(), 
+            planta.getTip_planta().name(), 
+            planta.getLocatie(), 
+            categoriePlanta, 
+            numarPetale, 
+            culoare, 
+            tipCoroana, 
+            tipFrunza, 
+            pomFructifer, 
+            produceFructe, 
+            tipTulpina, 
+            adminId, 
+            imagineUrl
+        );
+    }
+
+    public void adaugaInIerbar(int userId, int plantaId){
+        String sql="INSERT INTO plante_favorite (user_id, planta_id) VALUES (?, ?) ON CONFLICT DO NOTHING";
+        jdbcTemplate.update(sql, userId, plantaId);
+    }
+
+    public void stergeDinIerbar(int userId, int plantaId){
+        String sql="DELETE FROM plante_favorite WHERE user_id=? AND planta_id=?";
+        jdbcTemplate.update(sql, userId, plantaId);
+    }
+
+    public void stergePlantaDefinitiv(int idPlanta){
+        // 1. Ștergem întâi toate referințele plantei din ierbarul personal al utilizatorilor
+        String sqlFavorite="DELETE FROM plante_favorite WHERE planta_id=?";
+        jdbcTemplate.update(sqlFavorite, idPlanta);
+
+        // 2. Ștergem planta din tabelul principal
+        String sql="DELETE FROM plante WHERE id=?";
+        jdbcTemplate.update(sql, idPlanta);
+    }
+
+    public void actualizeazaPlanta(int idPlanta, Planta planta, String locatie, String imagineUrl, int numarPetale, 
+                                   String culoare, String tipCoroana, String tipFrunza, 
+                                   boolean pomFructifer, boolean produceFructe, String tipTulpina) {
+        
+        String sql = "UPDATE plante SET nume_uzual=?, denumire_stiintifica=?, familie=?, descriere=?, inaltime_maxima=?, " +
+                     "perioada_inflorire=?, poate_fi_uscata=?, ciclu_de_viata=?, tip_planta=CAST(? AS tip_planta), " +
+                     "numar_petale=?, culoare=?, tip_coroana=?, tip_frunza=?, pom_fructifer=?, produce_fructe=?, tip_tulpina=?, " +
+                     "categorie_planta=CAST(? AS categorie_planta), locatie=?, imagine_url=? WHERE id=?";
 
         String categoriePlanta = planta.getClass().getSimpleName().toUpperCase();
         
@@ -87,7 +142,6 @@ public class PlantaRepository{
             planta.isPoate_fi_uscata(), 
             planta.getCiclu_de_viata(), 
             planta.getTip_planta().name(), 
-            categoriePlanta, 
             numarPetale, 
             culoare, 
             tipCoroana, 
@@ -95,18 +149,10 @@ public class PlantaRepository{
             pomFructifer, 
             produceFructe, 
             tipTulpina, 
-            idAdmin, 
-            imagineUrl
+            categoriePlanta, 
+            planta.getLocatie(), 
+            imagineUrl,
+            idPlanta
         );
-    }
-
-    public void adaugaInIerbar(int userId, int plantaId){
-        String sql="INSERT INTO plante_favorite (user_id, planta_id) VALUES (?, ?) ON CONFLICT DO NOTHING";
-        jdbcTemplate.update(sql, userId, plantaId);
-    }
-
-    public void stergeDinIerbar(int userId, int plantaId){
-        String sql="DELETE FROM plante_favorite WHERE user_id=? AND planta_id=?";
-        jdbcTemplate.update(sql, userId, plantaId);
     }
 }
