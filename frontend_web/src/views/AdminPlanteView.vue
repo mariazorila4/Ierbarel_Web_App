@@ -158,6 +158,16 @@
           </div>
 
           <div class="grup-input complet">
+            <label>📍 Locație (Unde se găsește?)</label>
+            <input 
+              type="text" 
+              v-model="formPlanta.locatie" 
+              placeholder="ex: Munții Carpați, Europa de Est, Parcul Herăstrău..." 
+              required 
+            />
+          </div>
+
+          <div class="grup-input complet">
             <label>URL Imagine Plantă</label>
             <input 
               type="url" 
@@ -183,9 +193,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+
+// Injectăm serviciul global de notificări
+const notificare = inject('notificare')
 
 const router = useRouter()
 const mergiInapoi = () => router.push('/admin-dashboard')
@@ -202,6 +215,7 @@ const formPlanta = ref({
   familie: '',
   perioadaInflorire: '',
   descriere: '',
+  locatie: '',
   imagineUrl: '',
   inaltimeMaxima: '',
   poateFiUscata: false,
@@ -249,6 +263,7 @@ const deschideModalEditare = (planta) => {
     familie: planta.familie || '',
     perioadaInflorire: planta.perioada_inflorire || '',
     descriere: planta.descriere || '',
+    locatie: planta.locatie || '',
     imagineUrl: planta.imagineUrl || planta.imagine_url || '',
     inaltimeMaxima: planta.inaltime_maxima || '',
     poateFiUscata: planta.poate_fi_uscata || false,
@@ -269,7 +284,7 @@ const deschideModalEditare = (planta) => {
 const resetFormular = () => {
   formPlanta.value = {
     id: null, categoriePlanta: '', nume: '', numeStiintific: '', familie: '', perioadaInflorire: '',
-    descriere: '', imagineUrl: '', inaltimeMaxima: '', poateFiUscata: false, cicluDeViata: 'PEREN',
+    descriere: '', locatie: '', imagineUrl: '', inaltimeMaxima: '', poateFiUscata: false, cicluDeViata: 'PEREN',
     tipPlanta: 'ORNAMENTALA', numarPetale: '', culoare: '', tipCoroana: '', tipFrunza: '',
     pomFructifer: false, produceFructe: false, tipTulpina: ''
   }
@@ -291,6 +306,7 @@ const salveazaPlanta = async () => {
       denumire_stiintifica: formPlanta.value.numeStiintific,
       familie: formPlanta.value.familie,
       descriere: formPlanta.value.descriere,
+      locatie: formPlanta.value.locatie,
       inaltime_maxima: formPlanta.value.inaltimeMaxima ? formPlanta.value.inaltimeMaxima.toString() : "0",
       perioada_inflorire: formPlanta.value.perioadaInflorire,
       poate_fi_uscata: formPlanta.value.poateFiUscata ? "true" : "false",
@@ -308,12 +324,30 @@ const salveazaPlanta = async () => {
     }
 
     if (modEditare.value) {
-      console.log('Apel PUT:', datePlantaJava)
+      // 🟢 PUT pentru editare
+      const raspuns = await axios.put(`http://localhost:8080/api/plante/admin/${formPlanta.value.id}`, datePlantaJava, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      await notificare({
+        titlu: "Specie Modificată",
+        mesaj: raspuns.data || "Informațiile plantei au fost actualizate cu succes!",
+        tip: "success"
+      })
+      
+      incarcaPlante() 
     } else {
+      // 🟢 POST pentru adăugare
       const raspuns = await axios.post(`http://localhost:8080/api/plante/admin/${adminId}`, datePlantaJava, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
-      alert("🌿 " + raspuns.data) 
+      
+      await notificare({
+        titlu: "Specie Adăugată! 🌿",
+        mesaj: raspuns.data || "Planta a fost salvată cu succes în Baza de Date.",
+        tip: "success"
+      })
+      
       incarcaPlante() 
     }
     
@@ -321,18 +355,62 @@ const salveazaPlanta = async () => {
   } catch (eroare) {
     console.error("Eroare la salvarea plantei:", eroare)
     
-    // AICI E MAGIA: Afișăm pe ecran EXACT mesajul de eroare trimis de Spring Boot!
+    let mesajEroare = "Nu am putut contacta serverul."
     if (eroare.response && eroare.response.data) {
-      alert("🛑 Eroare din Java:\n" + eroare.response.data)
-    } else {
-      alert("Nu am putut contacta serverul.")
+      mesajEroare = typeof eroare.response.data === 'object' 
+        ? JSON.stringify(eroare.response.data, null, 2) 
+        : eroare.response.data
     }
+
+    await notificare({
+      titlu: "Eroare la Salvare",
+      mesaj: mesajEroare,
+      tip: "error"
+    })
   }
 }
 
-const stergePlanta = (id) => {
-  if(confirm('Ești sigur că vrei să ștergi această plantă?')) {
-    console.log('Apel DELETE pt id:', id)
+// 🟢 Ștergere cu confirmare prin NotificationModal
+const stergePlanta = async (id) => {
+  const vreaSaSterga = await notificare({
+    titlu: "Ștergere Definitivă",
+    mesaj: "Ești sigur că vrei să ștergi această plantă din Baza de Date? Această acțiune nu poate fi anulată.",
+    tip: "error",
+    esteConfirmare: true
+  })
+
+  if (!vreaSaSterga) return
+
+  try {
+    const token = localStorage.getItem('jwt_token')
+    
+    const raspuns = await axios.delete(`http://localhost:8080/api/plante/admin/${id}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    
+    await notificare({
+      titlu: "Șters cu Succes",
+      mesaj: raspuns.data || "Planta a fost eliminată definitiv.",
+      tip: "success"
+    })
+
+    incarcaPlante() // Reîncărcăm grila
+    
+  } catch (eroare) {
+    console.error("Eroare la ștergerea plantei:", eroare)
+    
+    let mesajEroare = "A apărut o problemă la ștergere."
+    if (eroare.response && eroare.response.data) {
+      mesajEroare = typeof eroare.response.data === 'object' 
+        ? JSON.stringify(eroare.response.data, null, 2) 
+        : eroare.response.data
+    }
+
+    await notificare({
+      titlu: "Eroare la Ștergere",
+      mesaj: mesajEroare,
+      tip: "error"
+    })
   }
 }
 </script>

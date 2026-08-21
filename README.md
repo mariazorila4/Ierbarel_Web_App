@@ -43,7 +43,7 @@ This project was initially developed locally starting August 3, 2026. As of Augu
 ## Getting started
 
 ### Backend Setup
-Ensure PostgreSQL is running and update src/main/resources/application.properties with your database credentials and Gemini API key, then run:
+Ensure PostgreSQL is running and update src/main/resources/application.properties and target/classes/application.properties with your database credentials and Gemini API key, then run:
 ```bash
 cd backend_spring
 mvn spring-boot:run

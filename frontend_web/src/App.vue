@@ -1,13 +1,25 @@
 <template>
   <FallingPetals />
+  <NotificationModal ref="notifRef" />
   <router-view />
 </template>
 
 <script setup>
+import { ref, provide } from 'vue'
 import FallingPetals from './components/FallingPetals.vue'
+import NotificationModal from './components/NotificationModal.vue'
+
+const notifRef = ref(null)
+
+// Oferim funcția 'notificare' global în toată aplicația
+provide('notificare', (opțiuni) => {
+  if (notifRef.value) {
+    return notifRef.value.afiseaza(opțiuni)
+  }
+  return Promise.resolve(false)
+})
 </script>
 
-<!-- Asigură-te că NU scrie "scoped" lângă style -->
 <style>
 /* Definim culorile globale direct aici */
 :root {
