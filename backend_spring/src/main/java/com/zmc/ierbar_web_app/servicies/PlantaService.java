@@ -1,55 +1,65 @@
 package com.zmc.ierbar_web_app.servicies;
 
-import com.zmc.ierbar_web_app.models.simple_factory.*;
-import com.zmc.ierbar_web_app.models.factory.*;
-import com.zmc.ierbar_web_app.repositories.*;
-
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
+import java.util.List;
 
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.http.ResponseEntity;
-import com.fasterxml.jackson.*;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
-import java.util.Map;
+import com.zmc.ierbar_web_app.models.factory.CategoriePlanta;
+import com.zmc.ierbar_web_app.models.factory.PlantaFactory;
+import com.zmc.ierbar_web_app.models.simple_factory.Planta;
+import com.zmc.ierbar_web_app.models.simple_factory.TipPlanta;
+import com.zmc.ierbar_web_app.repositories.PlantaRepository;
 
 @Service
 public class PlantaService {
     private final PlantaRepository plantaRepository;
-    private final RestTemplate restTemplate;
-    private final ObjectMapper objectMapper;
+    private final AgentAIService agentAIService;
 
-    private final String YOLO_SERVER_URL="http://localhost:5000/predict";
-    
-    public PlantaService(PlantaRepository plantaRepository) {
+    public PlantaService(PlantaRepository plantaRepository, AgentAIService agentAIService) {
         this.plantaRepository = plantaRepository;
-        this.restTemplate = new RestTemplate();
-        this.objectMapper = new ObjectMapper();
+        this.agentAIService = agentAIService;
     }
 
-    
-    public List<Planta> obtineIerbarulOnline(){
+    public List<Planta> obtineIerbarulOnline() {
         return plantaRepository.extrageToatePlantele();
     }
 
-    public Planta recunoasteSiAdaugPlanta(String imagineUrl, int userId) throws Exception{
-        Map<String, String> cerereYolo=Map.of("image_url", imagineUrl);
-        ResponseEntity<String> raspuns=restTemplate.postForEntity(YOLO_SERVER_URL, cerereYolo, String.class);
+    public Planta recunoasteSiAdaugPlanta(MultipartFile file, int userId) throws Exception {
+        String speciaIdentificata = agentAIService.detecteazaPlantaYOLO(file);
 
-        JsonNode jsonYolo=objectMapper.readTree(raspuns.getBody());
-        String speciaIdentificata=jsonYolo.path("clasa").asText();
-
-        if(speciaIdentificata==null || speciaIdentificata.isEmpty()){
-            throw new Exception("YOLO nu a putut recunoaste planta din imagine");
+        if (speciaIdentificata == null || speciaIdentificata.isEmpty() || speciaIdentificata.equalsIgnoreCase("Necunoscuta")) {
+            throw new Exception("YOLO nu a putut recunoaște planta din imagine.");
         }
 
-        PlantaFactory factory=new PlantaFactory();
-        Planta plantaNoua=factory.creazaPlanta(CategoriePlanta.FLOARE, 2, speciaIdentificata,
-             "denumire_generata", "familie", "descriere", 50f, "speciaIdentificata", "speciaIdentificata", TipPlanta.ORNAMENTALA, 0, "speciaIdentificata", "speciaIdentificata", imagineUrl, false, false, "speciaIdentificata", false);
+        PlantaFactory factory = new PlantaFactory();
+        
+        Planta plantaNoua = factory.creazaPlanta(
+            CategoriePlanta.FLOARE, 
+            userId, 
+            speciaIdentificata,                  // nume_uzual
+            "denumire_generata",                 // denumire_stiintifica
+            "familie",                           // familie
+            "Planta a fost identificata automat prin modulul de Computer Vision YOLO.", // descriere
+            50f,                                 // inaltime_maxima
+            "Nedefinita",                        // perioada_inflorire
+            "PEREN",                             // ciclu_de_viata
+            TipPlanta.ORNAMENTALA,               // tip_planta
+            "România",                           // locatie
+            0,                                   // numar_petale
+            "-",                                 // culoare
+            "-",                                 // tip_coroana
+            "-",                                 // tip_frunza
+            false,                               // pom_fructifer
+            false,                               // produce_fructe
+            "-",                                 // tip_tulpina
+            false                                // poate_fi_uscata
+        );
 
-        plantaRepository.salveazaPlantaNoua(plantaNoua, userId);
+        String urlImagineDefault = "https://images.unsplash.com/photo-1628808168235-96bece30fc6e?w=500";
+        plantaNoua.setImagine_url(urlImagineDefault);
+
+        plantaRepository.salveazaPlantaNoua(plantaNoua, userId, urlImagineDefault, 0, "-", "-", "-", false, false, "-");
 
         return plantaNoua;
     }
