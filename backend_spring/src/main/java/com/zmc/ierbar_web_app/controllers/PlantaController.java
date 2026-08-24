@@ -3,6 +3,7 @@ package com.zmc.ierbar_web_app.controllers;
 import java.security.Principal;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.zmc.ierbar_web_app.models.CapturaPlanta;
 import com.zmc.ierbar_web_app.models.factory.CategoriePlanta;
 import com.zmc.ierbar_web_app.models.factory.PlantaFactory;
 import com.zmc.ierbar_web_app.models.simple_factory.Planta;
@@ -46,6 +48,128 @@ public class PlantaController {
     public List<Planta> getToatePlantele(){
         return plantaRepository.extrageToatePlantele();
     }
+
+    // ==========================================
+    // 🖼️ ENDPOINT-URI PENTRU GALERIE ȘI HARTĂ
+    // ==========================================
+
+    @GetMapping("/{plantaId}/galerie")
+    public ResponseEntity<?> getGaleriePlanta(@PathVariable int plantaId) {
+        try {
+            List<CapturaPlanta> galerie = plantaRepository.extrageGalerieSpecie(plantaId);
+            return ResponseEntity.ok(galerie);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Eroare la încărcarea galeriei: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/{plantaId}/locatii")
+    public ResponseEntity<List<String>> getLocatiiSpecie(@PathVariable int plantaId) {
+        try {
+            List<String> locatii = plantaRepository.extrageLocatiiSpecie(plantaId);
+            return ResponseEntity.ok(locatii);
+        } catch (Exception e) {
+            return ResponseEntity.ok(List.of());
+        }
+    }
+
+    @PostMapping("/{plantaId}/publica-galerie")
+    public ResponseEntity<?> adaugaInGalerie(
+            @PathVariable int plantaId, 
+            @RequestBody Map<String, Object> payload,
+            Principal principal) {
+        try {
+            if (principal == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Utilizator neautentificat.");
+            }
+
+            General user = userRepository.cautaUserDupaEmail(principal.getName());
+            if (user == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+
+            int targetPlantaId = plantaId;
+            String imagineUrl = (String) payload.get("imagine_url");
+            String locatie = payload.getOrDefault("locatie", "Nespecificată").toString();
+
+            // Dacă planta nu există încă în BD (ID este 0), o salvăm mai întâi în catalogul oficial
+            if (targetPlantaId == 0) {
+                String numeUzual = (String) payload.getOrDefault("nume_uzual", "Planta Scanata");
+                String denumireStiintifica = (String) payload.getOrDefault("denumire_stiintifica", "Specie Botanica");
+                String descriere = (String) payload.getOrDefault("descriere", "Identificată prin scanare foto.");
+                String familie = (String) payload.getOrDefault("familie", "Familie Botanică");
+
+                PlantaFactory factory = new PlantaFactory();
+                Planta nouaPlanta = factory.creazaPlanta(
+                        CategoriePlanta.FLOARE, user.getId(), numeUzual, denumireStiintifica,
+                        familie, descriere, 0.4f, "Primăvară-Vară", "PEREN", TipPlanta.ORNAMENTALA,
+                        locatie, imagineUrl, 5, "Diverse", "-", "Simplă", false, false, "Erectă", true
+                );
+
+                plantaRepository.salveazaPlantaNoua(
+                    nouaPlanta, user.getId(), imagineUrl, 5, "Diverse", "-", "Simplă", false, false, "Erectă"
+                );
+
+                List<Planta> plante = plantaRepository.extrageToatePlantele();
+                targetPlantaId = plante.get(plante.size() - 1).getId();
+            }
+
+            // Adăugăm captura foto în tabelul capturi_plante pentru Ierbarul Personal / Galerie
+            plantaRepository.adaugaCapturaInGalerie(targetPlantaId, user.getId(), imagineUrl, locatie);
+
+            return ResponseEntity.ok(Map.of("mesaj", "Fotografia ta a fost salvată cu succes!", "planta_id", targetPlantaId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Eroare la salvare: " + e.getMessage());
+        }
+    }
+
+    // ==========================================
+    // 📚 IERBAR PERSONAL
+    // ==========================================
+
+    @GetMapping("/ierbar-personal")
+    public ResponseEntity<?> getIerbarPersonal(Principal principal) {
+        try {
+            if (principal == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Utilizator neautentificat.");
+            }
+            General user = userRepository.cautaUserDupaEmail(principal.getName());
+            if (user == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+
+            List<CapturaPlanta> capturi = plantaRepository.extrageIerbarPersonalUser(user.getId());
+            return ResponseEntity.ok(capturi);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Eroare la preluarea ierbarului: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/ierbar-personal/{plantaId}")
+    public ResponseEntity<?> salveazaPlanta(@PathVariable int plantaId, Principal principal){
+        General user = userRepository.cautaUserDupaEmail(principal.getName());
+        if(user == null){
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        plantaRepository.adaugaInIerbar(user.getId(), plantaId);
+        return ResponseEntity.ok(Map.of("mesaj", "Planta adaugata in ierbarul tau"));
+    }
+
+    @DeleteMapping("/ierbar-personal/{plantaId}")
+    public ResponseEntity<?> stergePlantaDinIerbar(@PathVariable int plantaId, Principal principal){
+        General user = userRepository.cautaUserDupaEmail(principal.getName());
+        if(user == null){
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        plantaRepository.stergeDinIerbar(user.getId(), plantaId);
+        return ResponseEntity.ok(Map.of("mesaj", "Planta stearsa din ierbarul tau personal"));
+    }
+
+    // ==========================================
+    // 🌿 ADMIN & SCANARE
+    // ==========================================
 
     @PostMapping("/admin/{adminId}")
     public ResponseEntity<String> adaugaPlantaNoua(@PathVariable int adminId, @RequestBody Map<String, String> datePlanta){
@@ -89,16 +213,17 @@ public class PlantaController {
             plantaNoua.setImagine_url(imagineUrl);
 
             plantaRepository.salveazaPlantaNoua(
-            plantaNoua, 
-            adminId, 
-            imagineUrl, 
-            Integer.parseInt(nrPetale), 
-            culoare, 
-            tipCoroana, 
-            tipFrunza, 
-            Boolean.parseBoolean(pomFructifer), 
-            Boolean.parseBoolean(produceFructe), 
-            tipTulpina);
+                plantaNoua, 
+                adminId, 
+                imagineUrl, 
+                Integer.parseInt(nrPetale), 
+                culoare, 
+                tipCoroana, 
+                tipFrunza, 
+                Boolean.parseBoolean(pomFructifer), 
+                Boolean.parseBoolean(produceFructe), 
+                tipTulpina
+            );
 
             return ResponseEntity.ok("Planta a fost adaugata cu succes in ierbarul online.");
         } catch (Exception e) {
@@ -157,40 +282,91 @@ public class PlantaController {
 
     @PostMapping(value = "/scaneaza", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> scaneazaImagineYOLO(@RequestParam("file") MultipartFile file,
-                                                 @RequestParam("user_id") int userId){
-        try{
-            if (file.isEmpty()) {
-                return ResponseEntity.badRequest().body("Fișierul încărcat este gol.");
+                                                 @RequestParam(value = "user_id", defaultValue = "1") int userId) {
+        try {
+            if (file == null || file.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("eroare", "Fișierul încărcat este gol."));
             }
 
             Planta plantaRecunoscuta = plantaService.recunoasteSiAdaugPlanta(file, userId);
-
             return ResponseEntity.ok(plantaRecunoscuta);
-        }catch(Exception e){
-            return ResponseEntity.badRequest().body("Eroare la procesarea YOLO: " + e.getMessage());
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("eroare", "Eroare la procesarea YOLO: " + e.getMessage()));
         }
     }
 
-    @PostMapping("/ierbar-personal/{plantaId}")
-    public ResponseEntity<?> salveazaPlanta(@PathVariable int plantaId, Principal principal){
-        General user = userRepository.cautaUserDupaEmail(principal.getName());
-        if(user == null){
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
+    @DeleteMapping("/captura/{capturaId}")
+    public ResponseEntity<?> stergeCapturaPersonala(@PathVariable int capturaId, Principal principal) {
+        try {
+            General user = userRepository.cautaUserDupaEmail(principal.getName());
+            if (user == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
 
-        plantaRepository.adaugaInIerbar(user.getId(), plantaId);
-        
-        return ResponseEntity.ok(Map.of("mesaj", "Planta adaugata in ierbarul tau"));
+            plantaRepository.stergeCapturaPersonala(capturaId, user.getId());
+            return ResponseEntity.ok(Map.of("mesaj", "Fotografia scanată a fost ștearsă din Ierbarul tău!"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Eroare la ștergere: " + e.getMessage());
+        }
     }
 
-    @DeleteMapping("/ierbar-personal/{plantaId}")
-    public ResponseEntity<?> stergePlantaDinIerbar(@PathVariable int plantaId, Principal principal){
-        General user = userRepository.cautaUserDupaEmail(principal.getName());
-        if(user == null){
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
+    @PostMapping("/salveaza-scanare")
+    public ResponseEntity<?> salveazaScanarePersonala(
+            @RequestBody Map<String, Object> payload,
+            Principal principal) {
+        try {
+            if (principal == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Utilizator neautentificat.");
+            }
 
-        plantaRepository.stergeDinIerbar(user.getId(), plantaId);
-        return ResponseEntity.ok(Map.of("mesaj", "Planta stearsa din ierbarul tau personal"));
+            General user = userRepository.cautaUserDupaEmail(principal.getName());
+            if (user == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+
+            String numeUzual = (String) payload.getOrDefault("nume_uzual", "Planta Scanata");
+            String denumireStiintifica = (String) payload.getOrDefault("denumire_stiintifica", "Specie Botanica");
+            String descriere = (String) payload.getOrDefault("descriere", "Specie identificată prin scanare foto.");
+            String familie = (String) payload.getOrDefault("familie", "Familie Botanică");
+            String imagineUrl = (String) payload.get("imagine_url");
+            String locatie = (String) payload.getOrDefault("locatie", "Nespecificată");
+
+            // 1. Verificăm dacă planta există deja în catalogul global de plante
+            List<Planta> plante = plantaRepository.extrageToatePlantele();
+            Optional<Planta> potrivire = plante.stream()
+                    .filter(p -> p.getNume_uzual() != null && p.getNume_uzual().equalsIgnoreCase(numeUzual))
+                    .findFirst();
+
+            int targetPlantaId;
+
+            if (potrivire.isPresent()) {
+                targetPlantaId = potrivire.get().getId();
+            } else {
+                // Dacă nu există, creăm mai întâi planta în BD ca să obținem un ID valid
+                PlantaFactory factory = new PlantaFactory();
+                Planta nouaPlanta = factory.creazaPlanta(
+                        CategoriePlanta.FLOARE, user.getId(), numeUzual, denumireStiintifica,
+                        familie, descriere, 0.4f, "Primăvară-Vară", "PEREN", TipPlanta.ORNAMENTALA,
+                        locatie, imagineUrl, 5, "Diverse", "-", "Simplă", false, false, "Erectă", true
+                );
+
+                plantaRepository.salveazaPlantaNoua(
+                    nouaPlanta, user.getId(), imagineUrl, 5, "Diverse", "-", "Simplă", false, false, "Erectă"
+                );
+
+                List<Planta> dupaSalvare = plantaRepository.extrageToatePlantele();
+                targetPlantaId = dupaSalvare.get(dupaSalvare.size() - 1).getId();
+            }
+
+            // 2. Salvăm captura foto în `capturi_plante` cu ID-ul real de plantă obținut
+            plantaRepository.adaugaCapturaInGalerie(targetPlantaId, user.getId(), imagineUrl, locatie);
+
+            return ResponseEntity.ok(Map.of("mesaj", "Fotografia a fost salvată în Ierbarul tău!"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Eroare la salvare: " + e.getMessage());
+        }
     }
 }

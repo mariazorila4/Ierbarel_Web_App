@@ -45,7 +45,7 @@
       </div>
     </div>
 
-    <!-- Fereastra Modală cu Scroll Global -->
+    <!-- MODAL PRINCIPAL: DETALII BOTANICE PLANTA -->
     <div v-if="plantaSelectata" class="modal-overlay" @click.self="inchideDetalii">
       <div class="modal-content">
         <button class="btn-inchide" @click="inchideDetalii">✖</button>
@@ -86,29 +86,70 @@
           </div>
 
           <div class="sectiune-descriere">
-            <h4>Descriere:</h4>
+            <h4>Descriere Botanică:</h4>
             <p>{{ plantaSelectata.descriere }}</p>
           </div>
 
-          <div v-if="plantaSelectata.locatie" class="sectiune-habitat-harta">
+          <!-- HABITAT NATURAL (PUS DE ADMIN) -->
+          <div v-if="plantaSelectata.locatie && plantaSelectata.locatie !== 'Nespecificată'" class="sectiune-habitat">
             <hr class="separator-modal" />
             <h4>🌍 Habitat Natural:</h4>
             <p class="text-habitat">{{ plantaSelectata.locatie }}</p>
+          </div>
 
-            <h4 class="titlu-harta">📍 Locații pe Hartă:</h4>
+          <!-- ICON/BUTON PENTRU DESCHIDEREA GALERIEI -->
+          <div class="sectiune-galerie-buton">
+            <hr class="separator-modal" />
+            <button class="btn-deschide-galerie" @click="arataPopUpGalerie = true">
+              🖼️ Vezi Galeria Foto a Comunității ({{ galerieComunitate.length }} poze)
+            </button>
+          </div>
+
+          <!-- HARTA CUMULATIVĂ A COMUNITĂȚII -->
+          <div class="sectiune-habitat-harta">
+            <hr class="separator-modal" />
+            <h4>📍 Locațiile Descoperirilor pe Hartă:</h4>
+            
             <iframe 
+              v-if="googleMapsUrl"
               width="100%" 
-              height="250" 
+              height="260" 
               frameborder="0" 
               class="harta-iframe"
-              :src="'https://maps.google.com/maps?q=' + encodeURIComponent(plantaSelectata.locatie) + '&output=embed'" 
+              :src="googleMapsUrl" 
               allowfullscreen>
             </iframe>
-            <p class="nota-comunitate"><em>* În curând: Aici vor apărea locațiile exacte în care alți pasionați au descoperit această plantă! 🌿</em></p>
+            <p v-else class="text-habitat">Nu există încă locații înregistrate pe hartă pentru această specie.</p>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- POP-UP DEDICAT GALERIEI FOTO (LIGHTBOX) -->
+    <div v-if="arataPopUpGalerie" class="modal-overlay z-top" @click.self="arataPopUpGalerie = false">
+      <div class="popup-galerie-container">
+        <button class="btn-inchide-galerie" @click="arataPopUpGalerie = false">✖</button>
+        <h3 class="titlu-galerie-popup">📸 Galerie Foto Comunitate - {{ plantaSelectata?.nume_uzual }}</h3>
+
+        <p v-if="galerieComunitate.length === 0" class="subtext-gol-popup">
+          Nu există încă fotografii adăugate de alți utilizatori pentru această floare. 🌿
+        </p>
+
+        <div v-else class="lista-fotografii-popup">
+          <div v-for="item in galerieComunitate" :key="item.id" class="card-poza-mare">
+            <img :src="item.imagineUrl" class="poza-full" alt="Captură comunitate" />
+            
+            <!-- BADGE SUPRAPUS ÎN COLȚUL DIN DREAPTA SUS -->
+            <div class="badge-autor">
+              <span class="autor-name">👤 @{{ item.numeUtilizator || 'Anonim' }}</span>
+              <span class="autor-locatie">📍 {{ item.locatie || 'Nespecificată' }}</span>
+            </div>
           </div>
         </div>
       </div>
     </div>
+
   </div>
 </template>
 
@@ -117,9 +158,7 @@ import { ref, computed, onMounted, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 
-// Injectăm serviciul global de notificări
 const notificare = inject('notificare')
-
 const router = useRouter()
 const mergiInapoi = () => router.push('/dashboard')
 
@@ -128,15 +167,57 @@ const plantaSelectata = ref(null)
 const bazaDeDateGlobala = ref([])
 const seIncarca = ref(true)
 
-const deschideDetalii = (planta) => {
+const galerieComunitate = ref([])
+const locatiiSpecie = ref([])
+const arataPopUpGalerie = ref(false)
+
+const deschideDetalii = async (planta) => {
   plantaSelectata.value = planta
   document.body.style.overflow = 'hidden'
+  
+  galerieComunitate.value = []
+  locatiiSpecie.value = []
+
+  const token = localStorage.getItem('jwt_token')
+  const config = { headers: { 'Authorization': `Bearer ${token}` } }
+
+  try {
+    const resGalerie = await axios.get(`http://localhost:8080/api/plante/${planta.id}/galerie`, config)
+    galerieComunitate.value = resGalerie.data || []
+  } catch (err) {
+    console.warn("Nu s-a putut încărca galeria:", err)
+    galerieComunitate.value = []
+  }
+
+  try {
+    const resLocatii = await axios.get(`http://localhost:8080/api/plante/${planta.id}/locatii`, config)
+    locatiiSpecie.value = resLocatii.data || []
+  } catch (err) {
+    console.warn("Nu s-au putut încărca locațiile:", err)
+    locatiiSpecie.value = []
+  }
 }
 
 const inchideDetalii = () => {
   plantaSelectata.value = null
+  arataPopUpGalerie.value = false
+  galerieComunitate.value = []
+  locatiiSpecie.value = []
   document.body.style.overflow = 'auto'
 }
+
+const googleMapsUrl = computed(() => {
+  const locatiiToate = [...locatiiSpecie.value]
+  if (plantaSelectata.value?.locatie && plantaSelectata.value.locatie !== 'Nespecificată') {
+    locatiiToate.push(plantaSelectata.value.locatie)
+  }
+  
+  const unice = [...new Set(locatiiToate)].filter(l => l && l.trim() !== '')
+  if (unice.length === 0) return ''
+  
+  const query = unice.join(' | ')
+  return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&output=embed`
+})
 
 onMounted(async () => {
   try {
@@ -152,7 +233,6 @@ onMounted(async () => {
   }
 })
 
-// Adăugare la favorite folosind NotificationModal
 const adaugaLaFavorite = async (planta) => {
   try {
     const token = localStorage.getItem('jwt_token')
@@ -168,7 +248,6 @@ const adaugaLaFavorite = async (planta) => {
 
   } catch (eroare) {
     console.error("Eroare la salvare:", eroare)
-    
     let mesajEroare = "A apărut o eroare la salvarea plantei."
     if (eroare.response && eroare.response.data) {
       mesajEroare = typeof eroare.response.data === 'object' 
@@ -196,7 +275,6 @@ const planteFiltrate = computed(() => {
 </script>
 
 <style scoped>
-/* CSS PENTRU PAGINĂ */
 .page-wrapper { display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; padding: 40px 20px; }
 .glass-card { background: rgba(255, 255, 255, 0.9); padding: 2.5rem; border-radius: 20px; border: 3px solid var(--verde-inchis); width: 100%; box-shadow: 0 8px 25px rgba(0,0,0,0.05); }
 .full-card { max-width: 1000px; } 
@@ -220,34 +298,20 @@ const planteFiltrate = computed(() => {
 .btn-favorite { background: #ffebeb; color: #e74c3c; border: 1px solid #ffb3b3; padding: 8px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
 .btn-favorite:hover { background: #e74c3c; color: white; }
 
-/* =========================================
-   NOUL CSS PENTRU MODAL (CU SCROLL GLOBAL)
-   ========================================= */
 .modal-overlay { 
-  position: fixed; 
-  top: 0; left: 0; 
+  position: fixed; top: 0; left: 0; 
   width: 100vw; height: 100vh; 
   background: rgba(0, 0, 0, 0.7); 
   backdrop-filter: blur(5px); 
-  display: flex; 
-  justify-content: center; 
-  align-items: center; 
-  z-index: 9999; 
-  padding: 20px; 
-  box-sizing: border-box;
+  display: flex; justify-content: center; align-items: center; 
+  z-index: 9999; padding: 20px; box-sizing: border-box;
 }
 
 .modal-content { 
-  background: #ffffff; 
-  width: 100%; 
-  max-width: 550px; 
-  border-radius: 16px; 
-  position: relative; 
-  display: flex; 
-  flex-direction: column; 
-  max-height: 85vh; 
-  overflow-y: auto;
-  overflow-x: hidden;
+  background: #ffffff; width: 100%; max-width: 600px; 
+  border-radius: 16px; position: relative; 
+  display: flex; flex-direction: column; 
+  max-height: 85vh; overflow-y: auto; overflow-x: hidden;
   box-shadow: 0 20px 50px rgba(0,0,0,0.3); 
   animation: popUp 0.3s ease-out forwards; 
 }
@@ -255,7 +319,6 @@ const planteFiltrate = computed(() => {
 
 .modal-content::-webkit-scrollbar { width: 6px; }
 .modal-content::-webkit-scrollbar-thumb { background-color: var(--verde-deschis); border-radius: 10px; }
-.modal-content::-webkit-scrollbar-track { background: transparent; }
 
 .btn-inchide { 
   position: absolute; top: 15px; right: 15px; 
@@ -267,40 +330,111 @@ const planteFiltrate = computed(() => {
 }
 .btn-inchide:hover { background: #fee; color: #e74c3c; transform: scale(1.1); }
 
-.header-imagine { 
-  width: 100%; 
-  height: 500px; 
-  flex-shrink: 0; 
-  background: #f0f0f0; 
-  border-radius: 16px 16px 0 0; 
-}
-.poza-banner { 
-  width: 100%; 
-  height: 100%; 
-  object-fit: cover; 
-  border-radius: 16px 16px 0 0; 
-}
+.header-imagine { width: 100%; height: 600px; flex-shrink: 0; background: #f0f0f0; }
+.poza-banner { width: 100%; height: 100%; object-fit: cover; }
 
-.detalii-text { 
-  padding: 25px; 
-  flex: 1; 
-}
-
+.detalii-text { padding: 25px; flex: 1; }
 .nume-mare { margin: 0; color: var(--verde-inchis); font-size: 2rem; }
 .nume-stiintific-mare { color: #888; font-style: italic; font-size: 1.05rem; margin-top: 5px; }
 .separator-modal { border: none; border-top: 1px solid #eee; margin: 15px 0; }
 
 .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .info-grid p { margin: 5px 0; color: #444; font-size: 0.9rem; }
-.info-grid strong { color: #333; }
 
-.sectiune-descriere h4 { margin: 20px 0 10px 0; color: var(--verde-inchis); }
+.sectiune-descriere h4, .sectiune-habitat h4, .sectiune-habitat-harta h4 { margin: 20px 0 10px 0; color: var(--verde-inchis); }
 .sectiune-descriere p { color: #555; line-height: 1.6; font-size: 0.95rem; margin: 0; }
 
-.sectiune-habitat-harta h4 { margin: 20px 0 10px 0; color: var(--verde-inchis); }
-.text-habitat { color: #555; line-height: 1.5; font-size: 0.9rem; font-style: italic; margin: 0; background: #f4faeb; padding: 12px; border-left: 4px solid var(--verde-deschis); border-radius: 0 8px 8px 0; }
-.harta-iframe { border: 0; border-radius: 12px; margin-top: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
-.nota-comunitate { font-size: 0.8rem; color: #888; text-align: center; margin-top: 10px; }
+.text-habitat { color: #555; font-size: 0.9rem; font-style: italic; background: #f4faeb; padding: 10px; border-left: 4px solid var(--verde-deschis); }
 
-@media (max-width: 500px) { .info-grid { grid-template-columns: 1fr; } .header-imagine { height: 250px; } }
+.btn-deschide-galerie { 
+  width: 100%; 
+  padding: 14px; 
+  background: var(--verde-inchis); 
+  color: white; 
+  border: none; 
+  border-radius: 12px; 
+  font-weight: bold; 
+  font-size: 1rem; 
+  cursor: pointer; 
+  transition: 0.3s;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.btn-deschide-galerie:hover { 
+  background: var(--verde-deschis); 
+  color: #222; 
+}
+
+.z-top { z-index: 10000 !important; }
+.popup-galerie-container { 
+  background: #181818; 
+  width: 90%; 
+  max-width: 750px; 
+  height: 85vh; 
+  border-radius: 20px; 
+  padding: 25px; 
+  position: relative; 
+  display: flex; 
+  flex-direction: column; 
+  box-shadow: 0 25px 60px rgba(0,0,0,0.8); 
+  color: white; 
+}
+.btn-inchide-galerie { 
+  position: absolute; top: 15px; right: 15px; 
+  background: rgba(255,255,255,0.2); color: white; border: none; 
+  border-radius: 50%; width: 36px; height: 36px; cursor: pointer; 
+  z-index: 10; font-size: 1.2rem; transition: 0.2s;
+}
+.btn-inchide-galerie:hover { background: #e74c3c; }
+
+.titlu-galerie-popup { margin: 0 0 20px 0; text-align: center; color: #eef7d2; font-size: 1.25rem; }
+.subtext-gol-popup { text-align: center; color: #aaa; margin-top: 50px; font-style: italic; }
+
+.lista-fotografii-popup { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 25px; 
+  overflow-y: auto; 
+  flex: 1; 
+  padding-right: 10px; 
+}
+.lista-fotografii-popup::-webkit-scrollbar { width: 6px; }
+.lista-fotografii-popup::-webkit-scrollbar-thumb { background: #444; border-radius: 10px; }
+
+.card-poza-mare { 
+  position: relative; 
+  width: 100%; 
+  border-radius: 14px; 
+  overflow: hidden; 
+  background: #000; 
+  box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+}
+.poza-full { 
+  width: 100%; 
+  max-height: 480px; 
+  object-fit: contain; 
+  display: block; 
+}
+
+.badge-autor { 
+  position: absolute; 
+  top: 15px; 
+  right: 15px; 
+  background: rgba(0, 0, 0, 0.75); 
+  backdrop-filter: blur(6px); 
+  color: white; 
+  padding: 8px 14px; 
+  border-radius: 20px; 
+  display: flex; 
+  flex-direction: column; 
+  align-items: flex-end; 
+  font-size: 0.85rem; 
+  border: 1px solid rgba(255, 255, 255, 0.2); 
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+.autor-name { font-weight: bold; color: #eef7d2; }
+.autor-locatie { font-size: 0.75rem; color: #ddd; opacity: 0.9; margin-top: 2px; }
+
+.harta-iframe { border: 0; border-radius: 12px; margin-top: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+
+@media (max-width: 500px) { .info-grid { grid-template-columns: 1fr; } .header-imagine { height: 220px; } }
 </style>

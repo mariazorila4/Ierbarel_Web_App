@@ -13,10 +13,10 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.zmc.ierbar_web_app.models.user.MesajChat;
 
@@ -48,7 +48,7 @@ public class AgentAIService {
             ByteArrayResource fileResource = new ByteArrayResource(file.getBytes()) {
                 @Override
                 public String getFilename() {
-                    return file.getOriginalFilename();
+                    return file.getOriginalFilename() != null ? file.getOriginalFilename() : "image.jpg";
                 }
             };
 
@@ -60,10 +60,15 @@ public class AgentAIService {
             ResponseEntity<String> response = restTemplate.postForEntity(urlPython, requestEntity, String.class);
             JsonNode root = objectMapper.readTree(response.getBody());
 
-            return root.path("clasa").asText();
+            String clasa = root.path("clasa").asText();
+            if (clasa == null || clasa.isBlank()) {
+                return "Necunoscuta";
+            }
+            return clasa;
+
         } catch (Exception e) {
             System.err.println("Eroare la apelul Python YOLO: " + e.getMessage());
-            return null;
+            return "Necunoscuta";
         }
     }
 
@@ -72,17 +77,16 @@ public class AgentAIService {
 
         String textRaspunsAi;
 
-        try{
-            textRaspunsAi=apeleazaGeminiApi(textUtilizator);
-        }catch(Exception e){
-            System.err.println("Eroare la comunicarea cu gemini: "+e.getMessage());
-            textRaspunsAi="Ne pare rau, Ierbarel a intampinat o eroare de conexiune. Mai incearca o data.";
+        try {
+            textRaspunsAi = apeleazaGeminiApi(textUtilizator);
+        } catch (Exception e) {
+            System.err.println("Eroare la comunicarea cu Gemini: " + e.getMessage());
+            textRaspunsAi = "Ne pare rau, Ierbarel a intampinat o eroare de conexiune. Mai incearca o data.";
         }
 
         salveazaMesajInBazaDeDate(userId, textRaspunsAi, true);
 
-        MesajChat mesajBot=new MesajChat();
-
+        MesajChat mesajBot = new MesajChat();
         mesajBot.setMesaj(textRaspunsAi);
         mesajBot.setEste_bot(true);
         mesajBot.setData_trimiterii(LocalDateTime.now());
@@ -91,32 +95,57 @@ public class AgentAIService {
     }
 
     private void salveazaMesajInBazaDeDate(int userId, String mesaj, boolean este_bot) {
-        String sql="INSERT INTO istoric_chat(user_id, mesaj, este_bot) VALUES (?, ?, ?)";
+        String sql = "INSERT INTO istoric_chat(user_id, mesaj, este_bot) VALUES (?, ?, ?)";
         jdbcTemplate.update(sql, userId, mesaj, este_bot);
     }
 
     private String apeleazaGeminiApi(String promptUtilizator) throws Exception {
+        // Numele corect al modelului Gemini Flash de la Google
         String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=" + apiKey;
-        
-        String promptComplet="Esti Ghiocel, un sistent virtual botanist, prietenos, cute si educativ. Nu trebuie sa te preziniti la fiecare inceput de conversatie, este pusa deja o introducere default."+
-                        "Raspunde scurt (maxim 2 paragrafe) si prietenos la urmatoarea solicitare: "+promptUtilizator;
 
-        Map<String, Object> requestBody=Map.of(
-            "contents", List.of(Map.of("parts", List.of(Map.of("text", promptComplet))))
+        String promptComplet = "Esti Ghiocel, un asistent virtual botanist, prietenos, cute si educativ. Nu trebuie sa te prezinti la fiecare inceput de conversatie." +
+                "Raspunde scurt (maxim 2 paragrafe) si prietenos la urmatoarea solicitare: " + promptUtilizator;
+
+        Map<String, Object> requestBody = Map.of(
+                "contents", List.of(Map.of("parts", List.of(Map.of("text", promptComplet))))
         );
 
-        HttpHeaders headers=new HttpHeaders();
+        HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        HttpEntity<Map<String, Object>> entity=new HttpEntity<>(requestBody, headers);
-        
-        ResponseEntity<String> response=restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-        JsonNode root=objectMapper.readTree(response.getBody());
-        String raspunsCurat=root.path("candidates").get(0).path("content")
-                            .path("parts").get(0).path("text").asText();
+        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
 
-        return raspunsCurat;
+        JsonNode root = objectMapper.readTree(response.getBody());
+        return root.path("candidates").get(0).path("content")
+                .path("parts").get(0).path("text").asText();
     }
-    
+
+    public Map<String, String> genereazaDetaliiBotanice(String numeSpecie) {
+        try {
+            String prompt = "Descrie în limba română în 2-3 fraze planta: " + numeSpecie + 
+                            ". Menționează familia botanică, aspectul florii și utilizarea ei.";
+
+            String descriereGenerata = apeleazaGeminiApi(prompt);
+
+            return Map.of(
+                "nume_uzual", numeSpecie,
+                "denumire_stiintifica", numeSpecie,
+                "familie", "Familie Botanică",
+                "descriere", descriereGenerata
+            );
+        } catch (Exception e) {
+            // Afișăm eroarea reală în consolă pentru a ști de ce eșuează Gemini
+            System.err.println("Eroare la apelul Gemini AI pentru specia " + numeSpecie + ": " + e.getMessage());
+            
+            // Fallback DINAMIC (fără nicio referință hardcodată la Păpădie!)
+            return Map.of(
+                "nume_uzual", numeSpecie,
+                "denumire_stiintifica", numeSpecie,
+                "familie", "Generală",
+                "descriere", numeSpecie + " este o specie de plantă identificată prin scanare foto."
+            );
+        }
+    }
 }
