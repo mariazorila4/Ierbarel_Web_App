@@ -225,4 +225,28 @@ public class UserRepository {
         String sql="UPDATE users SET status=? WHERE id=?";
         jdbcTemplate.update(sql, newStatus, id);
     }
+
+    public General cautaUserDupaUsername(String username) {
+        String sqlUser="SELECT * FROM users WHERE username=?";
+
+        try{
+            return jdbcTemplate.queryForObject(sqlUser, (rs, rand)->{
+                General g=new General();
+
+                g.setId(rs.getInt("id"));
+                g.setUsername(rs.getString("username"));
+                g.setEmail(rs.getString("email"));
+                g.setPassword(rs.getString("password"));
+                g.setStatus(rs.getString("status"));
+                
+                if(rs.getString("tip_user") != null) {
+                    g.setTip_user(TipUser.valueOf(rs.getString("tip_user")));
+                }
+
+                return g;
+            }, username);
+        }catch(EmptyResultDataAccessException e){
+            return null;
+        }
+    }
 }
