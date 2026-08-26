@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.zmc.ierbar_web_app.models.CapturaPlanta;
+import com.zmc.ierbar_web_app.models.CuriozitatePlanta;
 import com.zmc.ierbar_web_app.models.factory.CategoriePlanta;
 import com.zmc.ierbar_web_app.models.factory.PlantaFactory;
 import com.zmc.ierbar_web_app.models.simple_factory.Planta;
@@ -28,6 +30,7 @@ import com.zmc.ierbar_web_app.models.simple_factory.TipPlanta;
 import com.zmc.ierbar_web_app.models.user.General;
 import com.zmc.ierbar_web_app.repositories.PlantaRepository;
 import com.zmc.ierbar_web_app.repositories.UserRepository;
+import com.zmc.ierbar_web_app.servicies.CuriozitateSchedulerService;
 import com.zmc.ierbar_web_app.servicies.PlantaService;
 
 @RestController
@@ -342,5 +345,26 @@ public class PlantaController {
             } catch (Exception ignored) {}
         }
         return user;
+    }
+
+    @Autowired
+    private CuriozitateSchedulerService curiozitateSchedulerService;
+
+    @GetMapping("/curiozitatea-zilei")
+    public ResponseEntity<?> getCuriozitateaZilei() {
+        try {
+            // Folosim noua metodă care extrage tot istoricul pentru calendar
+            List<CuriozitatePlanta> curiozitati = plantaRepository.extrageIstoricCuriozitati();
+
+            // Dacă baza de date e goală, generăm prima curiozitate pe loc
+            if (curiozitati.isEmpty()) {
+                curiozitateSchedulerService.genereazaSiSalveazaCuriozitate();
+                curiozitati = plantaRepository.extrageIstoricCuriozitati();
+            }
+
+            return ResponseEntity.ok(curiozitati);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Eroare la preluarea curiozităților: " + e.getMessage());
+        }
     }
 }

@@ -148,4 +148,26 @@ public class AgentAIService {
             );
         }
     }
+
+    public String genereazaCuriozitateInedita(String numePlanta, List<String> curiozitatiVechi) {
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("Spune-mi o curiozitate fascinantă, surprinzătoare și puțin cunoscută despre planta '")
+            .append(numePlanta)
+            .append("'.\n");
+
+        if (curiozitatiVechi != null && !curiozitatiVechi.isEmpty()) {
+            prompt.append("IMPORTANT: Te rog să NU repeți și să NU menționezi ideile sau informațiile din următoarele curiozități deja folosite:\n");
+            for (String veche : curiozitatiVechi) {
+                prompt.append("- ").append(veche).append("\n");
+            }
+            prompt.append("Vreau un fapt botanic complet NOU și diferit!");
+        }
+
+        try {
+            return apeleazaGeminiApi(prompt.toString());
+        } catch (Exception e) {
+            System.err.println("Eroare la generarea curiozității pentru " + numePlanta + ": " + e.getMessage());
+            return "Planta " + numePlanta + " are proprietăți adaptative uimitoare și joacă un rol esențial în ecosistemul său.";
+        }
+    }
 }

@@ -6,6 +6,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.zmc.ierbar_web_app.models.CapturaPlanta;
+import com.zmc.ierbar_web_app.models.CuriozitatePlanta;
 import com.zmc.ierbar_web_app.models.factory.CategoriePlanta;
 import com.zmc.ierbar_web_app.models.factory.PlantaFactory;
 import com.zmc.ierbar_web_app.models.simple_factory.Planta;
@@ -273,5 +274,54 @@ public class PlantaRepository {
         String sql = "UPDATE capturi_plante SET este_publica = TRUE, locatie = ? " +
                     "WHERE id = (SELECT id FROM capturi_plante WHERE planta_id = ? AND user_id = ? ORDER BY data_adaugarii DESC LIMIT 1)";
         jdbcTemplate.update(sql, locatie, plantaId, userId);
+    }
+
+    // ==========================================
+    // 💡 METODE CURIOZITĂȚI BOTANICE (CALENDAR)
+    // ==========================================
+
+    // 1. Salvează curiozitatea cu iconița/emoji-ul indiciu asociat
+    public void salveazaCuriozitate(int plantaId, String titlu, String curiozitate, String iconita) {
+        String sql = "INSERT INTO curiozitati_plante (planta_id, titlu, curiozitate, iconita, data_generare) VALUES (?, ?, ?, ?, CURRENT_DATE)";
+        jdbcTemplate.update(sql, plantaId, titlu, curiozitate, iconita);
+    }
+
+    // 2. Extrage TOT istoricul curiozităților (ordonat după dată) pentru afișarea în calendar
+    public List<CuriozitatePlanta> extrageIstoricCuriozitati() {
+        String sql = "SELECT c.*, p.nume_uzual FROM curiozitati_plante c " +
+                     "JOIN plante p ON c.planta_id = p.id " +
+                     "ORDER BY c.data_generare DESC";
+
+        return jdbcTemplate.query(sql, (rs, rowNum) -> {
+            CuriozitatePlanta c = new CuriozitatePlanta();
+            c.setId(rs.getInt("id"));
+            c.setPlantaId(rs.getInt("planta_id"));
+            c.setNumePlanta(rs.getString("nume_uzual"));
+            c.setTitlu(rs.getString("titlu"));
+            c.setCuriozitate(rs.getString("curiozitate"));
+            
+            // Verificare de siguranță dacă coloana iconiță nu exista anterior
+            try {
+                String ic = rs.getString("iconita");
+                c.setIconita(ic != null && !ic.isBlank() ? ic : "🌿");
+            } catch (Exception e) {
+                c.setIconita("🌿");
+            }
+
+            if (rs.getDate("data_generare") != null) {
+                c.setDataGenerare(rs.getDate("data_generare").toLocalDate());
+            }
+            return c;
+        });
+    }
+
+    // 3. Extrage curiozitățile anterioare ale unei plante (folosit de AI pentru a evita repetarea)
+    public List<String> extrageIstoricCuriozitatiPlanta(int plantaId) {
+        String sql = "SELECT curiozitate FROM curiozitati_plante WHERE planta_id = ?";
+        try {
+            return jdbcTemplate.queryForList(sql, String.class, plantaId);
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 }
