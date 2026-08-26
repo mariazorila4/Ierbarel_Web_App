@@ -12,6 +12,7 @@ public class CapturaPlanta {
     private String imagineUrl;
     private String locatie;
     private LocalDateTime dataAdaugarii;
+    private boolean estePublica;
     private Planta planta;
 
     public int getId() { return id; }
@@ -35,6 +36,11 @@ public class CapturaPlanta {
     public LocalDateTime getDataAdaugarii() { return dataAdaugarii; }
     public void setDataAdaugarii(LocalDateTime dataAdaugarii) { this.dataAdaugarii = dataAdaugarii; }
 
+    public boolean isEstePublica() {return estePublica;}
+    public void setEstePublica(boolean estePublica) {this.estePublica = estePublica;}
+
     public Planta getPlanta() {return planta;}
     public void setPlanta(Planta planta) {this.planta = planta;}
+
+    
 }

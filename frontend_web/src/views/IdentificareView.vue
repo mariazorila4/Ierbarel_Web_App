@@ -109,6 +109,7 @@ const estePublicataGlobal = ref(false)
 const locatieGasita = ref('')
 const seSalveaza = ref(false)
 const sePublica = ref(false)
+const plantaIdSalvata = ref(null)
 
 const mergiInapoi = () => router.push('/dashboard')
 
@@ -128,8 +129,17 @@ onMounted(() => {
 const deschideCamera = () => inputCamera.value?.click()
 const deschideGalerie = () => inputGalerie.value?.click()
 
+const trageFisier = (event) => {
+  const fisier = event.dataTransfer.files[0]
+  if (fisier) prelucreazaFisier(fisier)
+}
+
 const previzualizeazaImagine = (event) => {
   const fisier = event.target.files[0]
+  if (fisier) prelucreazaFisier(fisier)
+}
+
+const prelucreazaFisier = (fisier) => {
   if (fisier && fisier.type.startsWith('image/')) {
     imagineSelectata.value = fisier
     previewUrl.value = URL.createObjectURL(fisier)
@@ -137,6 +147,7 @@ const previzualizeazaImagine = (event) => {
     esteSalvataInIerbar.value = false
     estePublicataGlobal.value = false
     locatieGasita.value = ''
+    plantaIdSalvata.value = null
   }
 }
 
@@ -147,6 +158,7 @@ const schimbaPoza = () => {
   esteSalvataInIerbar.value = false
   estePublicataGlobal.value = false
   locatieGasita.value = ''
+  plantaIdSalvata.value = null
 }
 
 const trimiteSpreAnaliza = async () => {
@@ -181,7 +193,7 @@ const trimiteSpreAnaliza = async () => {
   }
 }
 
-// METODA 1: SALVEAZĂ EXCLUSIV ÎN IERBARUL PERSONAL (FĂRĂ PUBLICARE GLOBALĂ)
+// 1. SALVARE STRICT ÎN IERBAR PERSONAL
 const salveazaInIerbar = async () => {
   if (!plantaDetectata.value) return
 
@@ -190,24 +202,41 @@ const salveazaInIerbar = async () => {
     const token = localStorage.getItem('jwt_token')
     const imgBase64 = plantaDetectata.value.imagine_url || plantaDetectata.value.imagineUrl || previewUrl.value
 
+    // Trimitem toate detaliile botanice dinamice obținute de la AI
     const payload = {
       nume_uzual: plantaDetectata.value.nume_uzual || plantaDetectata.value.numeUzual || 'Plantă Scanată',
       denumire_stiintifica: plantaDetectata.value.denumire_stiintifica || plantaDetectata.value.denumireStiintifica || 'Specie Botanică',
       familie: plantaDetectata.value.familie || 'Familie Botanică',
       descriere: plantaDetectata.value.descriere || 'Identificată prin scanare foto.',
       imagine_url: imgBase64,
-      locatie: 'Nespecificată'
+      categorie_planta: plantaDetectata.value.categorie_planta || plantaDetectata.value.categorie || 'FLOARE',
+      tip_planta: plantaDetectata.value.tip_planta || plantaDetectata.value.tipPlanta || 'ORNAMENTALA',
+      inaltime_maxima: plantaDetectata.value.inaltime_maxima || plantaDetectata.value.inaltimeMaxima || 0.5,
+      perioada_inflorire: plantaDetectata.value.perioada_inflorire || plantaDetectata.value.perioadaInflorire || 'Primăvară - Vară',
+      ciclu_de_viata: plantaDetectata.value.ciclu_de_viata || plantaDetectata.value.cicluDeViata || 'PEREN',
+      numar_petale: plantaDetectata.value.numar_petale || plantaDetectata.value.numarPetale || 5,
+      culoare: plantaDetectata.value.culoare || 'Diverse',
+      tip_coroana: plantaDetectata.value.tip_coroana || plantaDetectata.value.tipCoroana || 'Nespecificată',
+      tip_frunza: plantaDetectata.value.tip_frunza || plantaDetectata.value.tipFrunza || 'Simplă',
+      tip_tulpina: plantaDetectata.value.tip_tulpina || plantaDetectata.value.tipTulpina || 'Erectă',
+      pom_fructifer: plantaDetectata.value.pom_fructifer || plantaDetectata.value.pomFructifer || false,
+      produce_fructe: plantaDetectata.value.produce_fructe || plantaDetectata.value.produceFructe || false,
+      poate_fi_uscata: plantaDetectata.value.poate_fi_uscata || plantaDetectata.value.poateFiUscata || false
     }
 
-    await axios.post('http://localhost:8080/api/plante/salveaza-scanare', payload, {
+    const raspuns = await axios.post('http://localhost:8080/api/plante/salveaza-scanare', payload, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
+
+    if (raspuns.data && raspuns.data.planta_id) {
+      plantaIdSalvata.value = raspuns.data.planta_id
+    }
 
     esteSalvataInIerbar.value = true
 
     await afiseazaNotificare({
       titlu: "Plantă Salvată!",
-      mesaj: "Specia a fost adăugată în Ierbarul tău personal. 🌸",
+      mesaj: "Specia a fost adăugată în Ierbarul tău Personal. 🌸",
       tip: "success"
     })
   } catch (eroare) {
@@ -222,25 +251,20 @@ const salveazaInIerbar = async () => {
   }
 }
 
-// METODA 2: METODĂ SEPARATĂ DE PUBLICARE GLOBALĂ
+// 2. PUBLICARE ÎN GALERIA GLOBALĂ (ACTUALIZEAZĂ CAPTURA PE PUBLICĂ)
 const publicaInIerbarGlobal = async () => {
   if (!plantaDetectata.value) return
 
   try {
     sePublica.value = true
     const token = localStorage.getItem('jwt_token')
-    const imgBase64 = plantaDetectata.value.imagine_url || plantaDetectata.value.imagineUrl || previewUrl.value
-    const plantaId = plantaDetectata.value.id || 0
+    const targetId = plantaIdSalvata.value || plantaDetectata.value.id || 0
 
-    await axios.post(
-      `http://localhost:8080/api/plante/${plantaId}/publica-galerie`,
-      {
-        nume_uzual: plantaDetectata.value.nume_uzual || plantaDetectata.value.numeUzual,
-        denumire_stiintifica: plantaDetectata.value.denumire_stiintifica || plantaDetectata.value.denumireStiintifica,
-        familie: plantaDetectata.value.familie,
-        descriere: plantaDetectata.value.descriere,
-        imagine_url: imgBase64,
-        locatie: locatieGasita.value || 'Nespecificată'
+    await axios.put(
+      `http://localhost:8080/api/plante/${targetId}/publica-galerie`,
+      { 
+        locatie: locatieGasita.value || 'Nespecificată',
+        nume_uzual: plantaDetectata.value.nume_uzual || plantaDetectata.value.numeUzual
       },
       { headers: { 'Authorization': `Bearer ${token}` } }
     )
@@ -249,7 +273,7 @@ const publicaInIerbarGlobal = async () => {
 
     await afiseazaNotificare({
       titlu: "Publicat în Galerie! 🌐",
-      mesaj: "Fotografia ta a fost distribuită comunității în Ierbarul Global!",
+      mesaj: "Fotografia și locația au fost adăugate în Galeria Globală!",
       tip: "success"
     })
   } catch (eroare) {

@@ -28,14 +28,18 @@ public class PlantaService {
         return plantaRepository.extrageToatePlantele();
     }
 
-    public Planta recunoasteSiAdaugPlanta(MultipartFile file, int userId) throws Exception {
-        // 1. Detectare YOLO
+    /**
+     * Identifică specia din imagine (YOLO + Gemini AI) și generează dinamic
+     * un obiect de previzualizare (fără salvare în Baza de Date).
+     */
+    public Planta recunoastePlanta(MultipartFile file, int userId) throws Exception {
+        // 1. Detectare specie prin YOLO
         String clasaDetectata = agentAIService.detecteazaPlantaYOLO(file);
         if (clasaDetectata == null || clasaDetectata.isBlank() || clasaDetectata.equalsIgnoreCase("Necunoscuta")) {
             throw new Exception("YOLO nu a putut identifica nicio specie în imagine.");
         }
 
-        // 2. Convertim imaginea în Base64
+        // 2. Conversie imagine în Base64 pentru preview în interfață
         String imagineBase64 = "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=500";
         if (file != null && !file.isEmpty()) {
             try {
@@ -49,14 +53,28 @@ public class PlantaService {
 
         String speciaInRomana = mapeazaNumeSpecie(clasaDetectata);
 
-        // 3. Generăm dinamic descrierea și proprietățile botanice prin Gemini AI
+        // 3. Extragere dinamică a tuturor detaliilor botanice generate de Gemini AI
         Map<String, String> detaliiAI = agentAIService.genereazaDetaliiBotanice(speciaInRomana);
 
         String denumireStiintifica = detaliiAI.getOrDefault("denumire_stiintifica", clasaDetectata);
         String familie = detaliiAI.getOrDefault("familie", "Familie Botanică");
-        String descriereAI = detaliiAI.getOrDefault("descriere", "");
+        String descriereAI = detaliiAI.getOrDefault("descriere", "Specie identificată automat.");
         String perioadaInflorire = detaliiAI.getOrDefault("perioada_inflorire", "Primăvară - Vară");
         String cicluViata = detaliiAI.getOrDefault("ciclu_de_viata", "PEREN");
+        
+        // Preluare Categorie & Tip dinamic din AI
+        CategoriePlanta categorie = parseazaCategorie(detaliiAI.getOrDefault("categorie_planta", "FLOARE"));
+        TipPlanta tipPlanta = parseazaTip(detaliiAI.getOrDefault("tip_planta", "ORNAMENTALA"));
+
+        // Atribute botanice anatomice extrase dinamic (cu fallback-uri sigure)
+        int nrPetale = parseazaInt(detaliiAI.get("numar_petale"), 5);
+        String culoare = detaliiAI.getOrDefault("culoare", "Diverse");
+        String tipCoroana = detaliiAI.getOrDefault("tip_coroana", "Nespecificată");
+        String tipFrunza = detaliiAI.getOrDefault("tip_frunza", "Simplă");
+        String tipTulpina = detaliiAI.getOrDefault("tip_tulpina", "Erectă");
+        boolean pomFructifer = parseazaBoolean(detaliiAI.get("pom_fructifer"));
+        boolean produceFructe = parseazaBoolean(detaliiAI.get("produce_fructe"));
+        boolean poateFiUscata = parseazaBoolean(detaliiAI.get("poate_fi_uscata"));
 
         float inaltime = 0.5f;
         try {
@@ -65,7 +83,7 @@ public class PlantaService {
             }
         } catch (Exception ignored) {}
 
-        // Căutăm dacă specia există deja în BD
+        // 4. Căutăm dacă specia există deja în catalogul global (pentru a-i atașa ID-ul dacă există)
         List<Planta> planteExistente = plantaRepository.extrageToatePlantele();
         Optional<Planta> potrivire = planteExistente.stream()
                 .filter(p -> (p.getNume_uzual() != null && p.getNume_uzual().equalsIgnoreCase(speciaInRomana)) ||
@@ -74,53 +92,46 @@ public class PlantaService {
 
         PlantaFactory factory = new PlantaFactory();
 
-        // Dacă specia există în BD, dăm prioritate descrierii generate dinamic dacă cea din BD e goală/veche
         if (potrivire.isPresent()) {
-            Planta plantaOficiala = potrivire.get();
-            String descriereExistenta = plantaOficiala.getDescriere();
-
-            if (descriereExistenta == null || descriereExistenta.isBlank() || descriereExistenta.length() < 30) {
-                descriereExistenta = descriereAI;
-            }
-
-            Planta plantaTemporara = factory.creazaPlanta(
-                    plantaOficiala.getCategorie_planta() != null ? plantaOficiala.getCategorie_planta() : CategoriePlanta.FLOARE,
+            Planta pBD = potrivire.get();
+            Planta plantaExistentaPreview = factory.creazaPlanta(
+                    pBD.getCategorie_planta() != null ? pBD.getCategorie_planta() : categorie,
                     userId,
-                    plantaOficiala.getNume_uzual(),
-                    plantaOficiala.getDenumire_stiintifica(),
-                    plantaOficiala.getFamilie(),
-                    descriereExistenta,
-                    plantaOficiala.getInaltime_maxima(),
-                    plantaOficiala.getPerioada_inflorire(),
-                    plantaOficiala.getCiclu_de_viata(),
-                    plantaOficiala.getTip_planta() != null ? plantaOficiala.getTip_planta() : TipPlanta.ORNAMENTALA,
+                    pBD.getNume_uzual(),
+                    pBD.getDenumire_stiintifica(),
+                    pBD.getFamilie(),
+                    (pBD.getDescriere() != null && pBD.getDescriere().length() > 30) ? pBD.getDescriere() : descriereAI,
+                    pBD.getInaltime_maxima(),
+                    pBD.getPerioada_inflorire(),
+                    pBD.getCiclu_de_viata(),
+                    pBD.getTip_planta() != null ? pBD.getTip_planta() : tipPlanta,
                     "Nespecificată",
                     imagineBase64,
-                    5, "Diverse", "-", "Simplă", false, false, "Erectă",
-                    plantaOficiala.isPoate_fi_uscata()
+                    nrPetale, culoare, tipCoroana, tipFrunza, pomFructifer, produceFructe, tipTulpina,
+                    pBD.isPoate_fi_uscata()
             );
-            plantaTemporara.setId(plantaOficiala.getId());
-            return plantaTemporara;
+            plantaExistentaPreview.setId(pBD.getId());
+            return plantaExistentaPreview;
         }
 
-        // Specie nouă: returnăm obiectul cu datele dinamice obținute direct de la AI
+        // 5. Specie Nouă: Obiect Preview generat 100% dinamic în memorie (ID = 0, FĂRĂ BAZĂ DE DATE!)
         Planta plantaPreview = factory.creazaPlanta(
-                CategoriePlanta.FLOARE, 
+                categorie, 
                 userId, 
                 speciaInRomana,                         
                 denumireStiintifica,                         
                 familie,                    
-                descriereAI, // Descrierea primită dinamic de la Gemini AI
+                descriereAI,
                 inaltime, 
                 perioadaInflorire, 
                 cicluViata, 
-                TipPlanta.ORNAMENTALA,                  
+                tipPlanta,                  
                 "Nespecificată", 
                 imagineBase64, 
-                5, "Diverse", "-", "Simplă", false, false, "Erectă", true
+                nrPetale, culoare, tipCoroana, tipFrunza, pomFructifer, produceFructe, tipTulpina, poateFiUscata
         );
 
-        plantaPreview.setId(0); // Păstrăm ID 0 până la apăsarea butonului de salvare
+        plantaPreview.setId(0); // ID = 0 marchează o înregistrare temporară de preview
         return plantaPreview;
     }
 
@@ -140,5 +151,26 @@ public class PlantaService {
         }
 
         return clasaYolo.substring(0, 1).toUpperCase() + clasaYolo.substring(1);
+    }
+
+    private CategoriePlanta parseazaCategorie(String val) {
+        try { return CategoriePlanta.valueOf(val.toUpperCase().trim()); }
+        catch (Exception e) { return CategoriePlanta.FLOARE; }
+    }
+
+    private TipPlanta parseazaTip(String val) {
+        try { return TipPlanta.valueOf(val.toUpperCase().trim()); }
+        catch (Exception e) { return TipPlanta.ORNAMENTALA; }
+    }
+
+    private int parseazaInt(String val, int defaultVal) {
+        try { return Integer.parseInt(val.replaceAll("[^0-9]", "")); }
+        catch (Exception e) { return defaultVal; }
+    }
+
+    private boolean parseazaBoolean(String val) {
+        if (val == null) return false;
+        String s = val.toLowerCase().trim();
+        return s.equals("true") || s.equals("da") || s.equals("1");
     }
 }

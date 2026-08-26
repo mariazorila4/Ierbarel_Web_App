@@ -172,15 +172,20 @@ public class PlantaRepository {
     // METODE GALERIE ȘI IERBAR PERSONAL
     // ==========================================
 
-    public void adaugaCapturaInGalerie(int plantaId, int userId, String imagineUrl, String locatie) {
-        String sql = "INSERT INTO capturi_plante (planta_id, user_id, imagine_url, locatie) VALUES (?, ?, ?, ?)";
-        jdbcTemplate.update(sql, plantaId, userId, imagineUrl, locatie);
+    public void adaugaCapturaInGalerie(int plantaId, int userId, String imagineUrl, String locatie, boolean estePublica) {
+        String sql = "INSERT INTO capturi_plante (planta_id, user_id, imagine_url, locatie, este_publica, data_adaugarii) VALUES (?, ?, ?, ?, ?, NOW())";
+        jdbcTemplate.update(sql, plantaId, userId, imagineUrl, locatie, estePublica);
+    }
+
+    public void marcheazaCapturaPublica(int capturaId, int userId, String locatie) {
+        String sql = "UPDATE capturi_plante SET este_publica = TRUE, locatie = ? WHERE id = ? AND user_id = ?";
+        jdbcTemplate.update(sql, locatie, capturaId, userId);
     }
 
     public List<CapturaPlanta> extrageGalerieSpecie(int plantaId) {
         String sql = "SELECT c.*, COALESCE(u.username, u.email, 'Anonim') AS nume_user FROM capturi_plante c " +
-                     "LEFT JOIN users u ON c.user_id = u.id " +
-                     "WHERE c.planta_id = ? ORDER BY c.data_adaugarii DESC";
+                    "LEFT JOIN users u ON c.user_id = u.id " +
+                    "WHERE c.planta_id = ? AND c.este_publica = TRUE ORDER BY c.data_adaugarii DESC";
 
         return jdbcTemplate.query(sql, (rs, rowNum) -> {
             CapturaPlanta cap = new CapturaPlanta();
@@ -194,7 +199,7 @@ public class PlantaRepository {
             return cap;
         }, plantaId);
     }
-
+    
     public List<CapturaPlanta> extrageIerbarPersonalUser(int userId) {
         String sql = "SELECT c.id AS captura_id, c.planta_id, c.user_id, c.imagine_url AS captura_img, c.locatie AS captura_loc, c.data_adaugarii, " +
                      "COALESCE(u.username, u.email, 'Anonim') AS nume_user, p.* " +
@@ -262,5 +267,11 @@ public class PlantaRepository {
     public void stergeCapturaPersonala(int capturaId, int userId) {
         String sql = "DELETE FROM capturi_plante WHERE id = ? AND user_id = ?";
         jdbcTemplate.update(sql, capturaId, userId);
+    }
+
+    public void publicaCapturaExistenta(int plantaId, int userId, String locatie) {
+        String sql = "UPDATE capturi_plante SET este_publica = TRUE, locatie = ? " +
+                    "WHERE id = (SELECT id FROM capturi_plante WHERE planta_id = ? AND user_id = ? ORDER BY data_adaugarii DESC LIMIT 1)";
+        jdbcTemplate.update(sql, locatie, plantaId, userId);
     }
 }

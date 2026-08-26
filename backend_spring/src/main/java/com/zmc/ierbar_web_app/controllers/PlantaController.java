@@ -73,54 +73,6 @@ public class PlantaController {
         }
     }
 
-    @PostMapping("/{plantaId}/publica-galerie")
-    public ResponseEntity<?> adaugaInGalerie(
-            @PathVariable int plantaId, 
-            @RequestBody Map<String, Object> payload,
-            Principal principal) {
-        try {
-            if (principal == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Utilizator neautentificat.");
-            }
-
-            General user = obtineUtilizatorDinPrincipal(principal);
-            if (user == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-            }
-
-            int targetPlantaId = plantaId;
-            String imagineUrl = payload.get("imagine_url") != null ? payload.get("imagine_url").toString() : "";
-            String locatie = payload.getOrDefault("locatie", "Nespecificată").toString();
-
-            if (targetPlantaId == 0) {
-                String numeUzual = payload.getOrDefault("nume_uzual", "Plantă Scanată").toString();
-                String denumireStiintifica = payload.getOrDefault("denumire_stiintifica", "Specie Botanică").toString();
-                String descriere = payload.getOrDefault("descriere", "Identificată prin scanare foto.").toString();
-                String familie = payload.getOrDefault("familie", "Familie Botanică").toString();
-
-                PlantaFactory factory = new PlantaFactory();
-                Planta nouaPlanta = factory.creazaPlanta(
-                        CategoriePlanta.FLOARE, user.getId(), numeUzual, denumireStiintifica,
-                        familie, descriere, 0.4f, "Primăvară-Vară", "PEREN", TipPlanta.ORNAMENTALA,
-                        locatie, imagineUrl, 5, "Diverse", "-", "Simplă", false, false, "Erectă", true
-                );
-
-                plantaRepository.salveazaPlantaNoua(
-                    nouaPlanta, user.getId(), imagineUrl, 5, "Diverse", "-", "Simplă", false, false, "Erectă"
-                );
-
-                List<Planta> plante = plantaRepository.extrageToatePlantele();
-                targetPlantaId = plante.get(plante.size() - 1).getId();
-            }
-
-            plantaRepository.adaugaCapturaInGalerie(targetPlantaId, user.getId(), imagineUrl, locatie);
-
-            return ResponseEntity.ok(Map.of("mesaj", "Fotografia ta a fost salvată cu succes!", "planta_id", targetPlantaId));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Eroare la salvare: " + e.getMessage());
-        }
-    }
-
     // ==========================================
     // 📚 IERBAR PERSONAL
     // ==========================================
@@ -166,26 +118,33 @@ public class PlantaController {
     // 🌿 ADMIN, SCANARE & SALVARE
     // ==========================================
 
+    // Helper local pentru normalizare nume (ignoră diacritice, spații, litere mari/mici)
+    private String normalizeazaText(String text) {
+        if (text == null) return "";
+        String nfdNormalized = java.text.Normalizer.normalize(text.toLowerCase().trim(), java.text.Normalizer.Form.NFD);
+        return nfdNormalized.replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
+    }
+
+    // 1. PASUL 1: SALVARE STRICT ÎN IERBARUL PERSONAL (PRIVAT)
     @PostMapping("/salveaza-scanare")
-    public ResponseEntity<?> salveazaScanarePersonala(
-            @RequestBody Map<String, Object> payload,
-            Principal principal) {
+    public ResponseEntity<?> salveazaScanarePersonala(@RequestBody Map<String, Object> payload, Principal principal) {
         try {
             General user = obtineUtilizatorDinPrincipal(principal);
-            if (user == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("mesaj", "Utilizator neautentificat."));
-            }
+            if (user == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 
             int userId = user.getId();
             String numeUzual = payload.getOrDefault("nume_uzual", "Plantă Scanată").toString().trim();
             String denumireStiintifica = payload.getOrDefault("denumire_stiintifica", "Specie Botanică").toString().trim();
             String descriere = payload.getOrDefault("descriere", "Identificată prin scanare foto.").toString();
             String familie = payload.getOrDefault("familie", "Familie Botanică").toString();
+            String imagineUrl = payload.get("imagine_url") != null ? payload.get("imagine_url").toString() : "";
 
-            // 1. Verificăm dacă specia există în catalogul general
+            String numeNorm = normalizeazaText(numeUzual);
+
+            // 1. Căutăm dacă specia există deja în Catalogul Global
             List<Planta> plante = plantaRepository.extrageToatePlantele();
             Optional<Planta> potrivire = plante.stream()
-                    .filter(p -> p.getNume_uzual() != null && p.getNume_uzual().equalsIgnoreCase(numeUzual))
+                    .filter(p -> normalizeazaText(p.getNume_uzual()).equals(numeNorm))
                     .findFirst();
 
             int targetPlantaId;
@@ -193,31 +152,36 @@ public class PlantaController {
             if (potrivire.isPresent()) {
                 targetPlantaId = potrivire.get().getId();
             } else {
+                // Dacă specia este nouă, creăm cardul de bază în 'plante' pentru a genera un ID valid
                 PlantaFactory factory = new PlantaFactory();
                 Planta nouaPlanta = factory.creazaPlanta(
                         CategoriePlanta.FLOARE, userId, numeUzual, denumireStiintifica,
                         familie, descriere, 0.4f, "Primăvară-Vară", "PEREN", TipPlanta.ORNAMENTALA,
-                        "Nespecificată", "", 5, "Diverse", "-", "Simplă", false, false, "Erectă", true
+                        "Nespecificată", imagineUrl, 5, "Diverse", "-", "Simplă", false, false, "Erectă", true
                 );
 
                 plantaRepository.salveazaPlantaNoua(
-                    nouaPlanta, userId, "", 5, "Diverse", "-", "Simplă", false, false, "Erectă"
+                    nouaPlanta, userId, imagineUrl, 5, "Diverse", "-", "Simplă", false, false, "Erectă"
                 );
 
                 List<Planta> dupaSalvare = plantaRepository.extrageToatePlantele();
                 targetPlantaId = dupaSalvare.get(dupaSalvare.size() - 1).getId();
             }
 
-            // 2. Salvare DOAR în tabelul de favorite/ierbar personal (fără inserare în capturi_plante)
-            plantaRepository.adaugaInIerbar(userId, targetPlantaId);
+            // 2. Salvare EXCLUSIVĂ în capturi_plante (Privat: este_publica = FALSE)
+            plantaRepository.adaugaCapturaInGalerie(targetPlantaId, userId, imagineUrl, "Nespecificată", false);
+
+            List<CapturaPlanta> capturi = plantaRepository.extrageIerbarPersonalUser(userId);
+            int capturaId = capturi.isEmpty() ? 0 : capturi.get(0).getId();
 
             return ResponseEntity.ok(Map.of(
-                "mesaj", "Plantă adăugată în Ierbarul tău Personal!",
-                "planta_id", targetPlantaId
+                "mesaj", "Plantă salvată în Ierbarul Personal!",
+                "planta_id", targetPlantaId,
+                "captura_id", capturaId
             ));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("mesaj", "Eroare la salvare: " + e.getMessage()));
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("mesaj", e.getMessage()));
         }
     }
 
@@ -332,13 +296,14 @@ public class PlantaController {
 
     @PostMapping(value = "/scaneaza", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> scaneazaImagineYOLO(@RequestParam("file") MultipartFile file,
-                                                 @RequestParam(value = "user_id", defaultValue = "1") int userId) {
+                                                @RequestParam(value = "user_id", defaultValue = "1") int userId) {
         try {
             if (file == null || file.isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("eroare", "Fișierul încărcat este gol."));
             }
 
-            Planta plantaRecunoscuta = plantaService.recunoasteSiAdaugPlanta(file, userId);
+            // Apelăm noua metodă redenumită și curățată
+            Planta plantaRecunoscuta = plantaService.recunoastePlanta(file, userId);
             return ResponseEntity.ok(plantaRecunoscuta);
 
         } catch (Exception e) {
