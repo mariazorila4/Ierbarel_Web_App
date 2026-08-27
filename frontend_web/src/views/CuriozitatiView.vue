@@ -12,21 +12,28 @@
         <p>Se încarcă calendarul... ⏳</p>
       </div>
 
-      <div v-else class="grid-calendar">
-        <div 
-          v-for="item in istoriculCuriozitati" 
-          :key="item.id"
-          class="zi-card"
-          :class="{ 'zi-selectata': curiozitateSelectata?.id === item.id, 'zi-azi': esteAzi(item.dataGenerare) }"
-          @click="selecteazaCuriozitate(item)"
-        >
-          <span class="badge-data">{{ formateazaDataScurta(item.dataGenerare) }}</span>
-          <div class="icon-indiciu">{{ item.iconita }}</div>
-          <small class="nume-indiciu">{{ item.numePlanta }}</small>
+      <div v-else class="container-luni">
+        <!-- GRUPARE PE FIECARE LUNĂ (ex: August 2026, Iulie 2026) -->
+        <div v-for="(grup, numeLuna) in curiozitatiGrupatePeLuni" :key="numeLuna" class="sectiune-luna">
+          <h3 class="titlu-luna">🗓️ {{ numeLuna }}</h3>
+          
+          <div class="grid-calendar">
+            <div 
+              v-for="item in grup" 
+              :key="item.id"
+              class="zi-card"
+              :class="{ 'zi-selectata': curiozitateSelectata?.id === item.id, 'zi-azi': esteAzi(item.dataGenerare) }"
+              @click="selecteazaCuriozitate(item)"
+            >
+              <span class="badge-data">{{ formateazaZiua(item.dataGenerare) }}</span>
+              <div class="icon-indiciu">{{ item.iconita }}</div>
+              <small class="nume-indiciu">{{ item.numePlanta }}</small>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- MODAL / POPUP CU DETALIILE CURIOZITĂȚII SELECTATE -->
+      <!-- DETALIUL CURIOZITĂȚII SELECTATE -->
       <div v-if="curiozitateSelectata" class="detaliu-card card-roz-deschis">
         <div class="header-detaliu">
           <span class="badge-planta">🌿 {{ curiozitateSelectata.numePlanta }}</span>
@@ -40,7 +47,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 
@@ -51,10 +58,10 @@ const seIncarca = ref(true)
 
 const mergiInapoi = () => router.push('/dashboard')
 
-const formateazaDataScurta = (dataStr) => {
+// Extrage doar ziua din data (ex: din "2026-08-27" extrage "27")
+const formateazaZiua = (dataStr) => {
   if (!dataStr) return ''
-  const parts = dataStr.split('-')
-  return `${parts[2]}.${parts[1]}`
+  return dataStr.split('-')[2]
 }
 
 const esteAzi = (dataStr) => {
@@ -65,6 +72,27 @@ const esteAzi = (dataStr) => {
 const selecteazaCuriozitate = (item) => {
   curiozitateSelectata.value = item
 }
+
+// 💡 GRUPARE DINAMICĂ DUPĂ LUNĂ ȘI AN
+const curiozitatiGrupatePeLuni = computed(() => {
+  const grupuri = {}
+
+  istoriculCuriozitati.value.forEach(item => {
+    if (!item.dataGenerare) return
+
+    const dataObj = new Date(item.dataGenerare)
+    // Formatează numele lunii în limba română (ex: "August 2026")
+    const numeLuna = dataObj.toLocaleDateString('ro-RO', { month: 'long', year: 'numeric' })
+    const numeLunaCapitalizat = numeLuna.charAt(0).toUpperCase() + numeLuna.slice(1)
+
+    if (!grupuri[numeLunaCapitalizat]) {
+      grupuri[numeLunaCapitalizat] = []
+    }
+    grupuri[numeLunaCapitalizat].push(item)
+  })
+
+  return grupuri
+})
 
 const incarcaIstoric = async () => {
   seIncarca.value = true
@@ -77,7 +105,7 @@ const incarcaIstoric = async () => {
     if (Array.isArray(raspuns.data)) {
       istoriculCuriozitati.value = raspuns.data
       if (raspuns.data.length > 0) {
-        curiozitateSelectata.value = raspuns.data[0] // Selectăm automat prima curiozitate (cea mai recentă)
+        curiozitateSelectata.value = raspuns.data[0]
       }
     }
   } catch (e) {
@@ -101,19 +129,24 @@ onMounted(() => {
 .subtitlu { text-align: center; color: #666; margin-bottom: 25px; font-size: 0.95rem; }
 .btn-secundar { background: white; border: 1px solid #ddd; padding: 8px 15px; border-radius: 8px; cursor: pointer; transition: 0.3s; color: #555; }
 
+/* Stiluri Grupuri Luni */
+.container-luni { display: flex; flex-direction: column; gap: 25px; margin-bottom: 20px; }
+.sectiune-luna { background: #fafafa; padding: 15px; border-radius: 16px; border: 1px solid #eee; }
+.titlu-luna { margin: 0 0 15px 5px; color: var(--roz-inchis); font-size: 1.1rem; }
+
 /* Grid Calendar */
-.grid-calendar { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 15px; margin-bottom: 30px; }
-.zi-card { background: white; border: 2px solid #eee; border-radius: 14px; padding: 12px; text-align: center; cursor: pointer; transition: all 0.3s ease; position: relative; }
-.zi-card:hover { transform: translateY(-4px); box-shadow: 0 6px 15px rgba(0,0,0,0.08); border-color: var(--roz-deschis); }
+.grid-calendar { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 12px; }
+.zi-card { background: white; border: 2px solid #eee; border-radius: 14px; padding: 10px; text-align: center; cursor: pointer; transition: all 0.3s ease; }
+.zi-card:hover { transform: translateY(-3px); box-shadow: 0 5px 12px rgba(0,0,0,0.08); border-color: var(--roz-deschis); }
 .zi-selectata { border-color: var(--roz-inchis) !important; background: #fff5f7 !important; transform: scale(1.03); }
 .zi-azi { border-color: #10b981; background: #ecfdf5; }
 
-.badge-data { font-size: 0.75rem; font-weight: bold; color: #777; background: #f3f4f6; padding: 2px 6px; border-radius: 6px; }
-.icon-indiciu { font-size: 2.2rem; margin: 8px 0 4px 0; }
-.nume-indiciu { display: block; font-size: 0.75rem; color: #444; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.badge-data { font-size: 0.8rem; font-weight: bold; color: #555; background: #f3f4f6; padding: 2px 8px; border-radius: 8px; }
+.icon-indiciu { font-size: 2rem; margin: 6px 0 2px 0; }
+.nume-indiciu { display: block; font-size: 0.7rem; color: #555; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Detaliu Card */
-.detaliu-card { background: #fff0f3; border-left: 5px solid var(--roz-inchis); padding: 22px; border-radius: 15px; margin-top: 20px; text-align: left; }
+.detaliu-card { background: #fff0f3; border-left: 5px solid var(--roz-inchis); padding: 22px; border-radius: 15px; margin-top: 15px; text-align: left; }
 .header-detaliu { display: flex; justify-content: space-between; margin-bottom: 12px; }
 .badge-planta { background: white; color: var(--roz-inchis); padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 0.85rem; }
 .data-completa { color: #888; font-size: 0.85rem; }

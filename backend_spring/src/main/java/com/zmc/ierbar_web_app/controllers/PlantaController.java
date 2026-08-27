@@ -49,7 +49,7 @@ public class PlantaController {
 
     @GetMapping
     public List<Planta> getToatePlantele(){
-        return plantaRepository.extrageToatePlantele();
+        return plantaRepository.extragePlantePublice();
     }
 
     // ==========================================
@@ -136,15 +136,49 @@ public class PlantaController {
             if (user == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 
             int userId = user.getId();
+            
+            // EXTRAGERE DATE DE BAZĂ
             String numeUzual = payload.getOrDefault("nume_uzual", "Plantă Scanată").toString().trim();
             String denumireStiintifica = payload.getOrDefault("denumire_stiintifica", "Specie Botanică").toString().trim();
             String descriere = payload.getOrDefault("descriere", "Identificată prin scanare foto.").toString();
             String familie = payload.getOrDefault("familie", "Familie Botanică").toString();
             String imagineUrl = payload.get("imagine_url") != null ? payload.get("imagine_url").toString() : "";
+            String locatie = payload.getOrDefault("locatie", "Nespecificată").toString().trim();
+
+            // EXTRAGERE DATE AVANSATE (DINAMICE DE LA AI)
+            String categorieStr = payload.getOrDefault("categorie_planta", "FLOARE").toString().toUpperCase();
+            CategoriePlanta categoriePlanta;
+            try { categoriePlanta = CategoriePlanta.valueOf(categorieStr); } 
+            catch (Exception e) { categoriePlanta = CategoriePlanta.FLOARE; }
+
+            String tipStr = payload.getOrDefault("tip_planta", "ORNAMENTALA").toString().toUpperCase();
+            TipPlanta tipPlanta;
+            try { tipPlanta = TipPlanta.valueOf(tipStr); } 
+            catch (Exception e) { tipPlanta = TipPlanta.ORNAMENTALA; }
+
+            float inaltimeMaxima = 0.5f;
+            try { inaltimeMaxima = Float.parseFloat(payload.getOrDefault("inaltime_maxima", "0.5").toString()); } 
+            catch (Exception e) {}
+
+            String perioadaInflorire = payload.getOrDefault("perioada_inflorire", "Primăvară-Vară").toString();
+            String cicluDeViata = payload.getOrDefault("ciclu_de_viata", "PEREN").toString();
+            
+            int numarPetale = 5;
+            try { numarPetale = Integer.parseInt(payload.getOrDefault("numar_petale", "5").toString()); } 
+            catch (Exception e) {}
+
+            String culoare = payload.getOrDefault("culoare", "Diverse").toString();
+            String tipCoroana = payload.getOrDefault("tip_coroana", "Nespecificată").toString();
+            String tipFrunza = payload.getOrDefault("tip_frunza", "Simplă").toString();
+            String tipTulpina = payload.getOrDefault("tip_tulpina", "Erectă").toString();
+
+            boolean pomFructifer = Boolean.parseBoolean(payload.getOrDefault("pom_fructifer", "false").toString());
+            boolean produceFructe = Boolean.parseBoolean(payload.getOrDefault("produce_fructe", "false").toString());
+            boolean poateFiUscata = Boolean.parseBoolean(payload.getOrDefault("poate_fi_uscata", "false").toString());
 
             String numeNorm = normalizeazaText(numeUzual);
 
-            // 1. Căutăm dacă specia există deja în Catalogul Global
+            // Căutăm dacă specia există deja
             List<Planta> plante = plantaRepository.extrageToatePlantele();
             Optional<Planta> potrivire = plante.stream()
                     .filter(p -> normalizeazaText(p.getNume_uzual()).equals(numeNorm))
@@ -155,24 +189,23 @@ public class PlantaController {
             if (potrivire.isPresent()) {
                 targetPlantaId = potrivire.get().getId();
             } else {
-                // Dacă specia este nouă, creăm cardul de bază în 'plante' pentru a genera un ID valid
+                // DACĂ E SPECIE NOUĂ, FOLOSIM VARIABILELE DINAMICE, NU HARDCODĂRI!
                 PlantaFactory factory = new PlantaFactory();
                 Planta nouaPlanta = factory.creazaPlanta(
-                        CategoriePlanta.FLOARE, userId, numeUzual, denumireStiintifica,
-                        familie, descriere, 0.4f, "Primăvară-Vară", "PEREN", TipPlanta.ORNAMENTALA,
-                        "Nespecificată", imagineUrl, 5, "Diverse", "-", "Simplă", false, false, "Erectă", true
+                        categoriePlanta, userId, numeUzual, denumireStiintifica,
+                        familie, descriere, inaltimeMaxima, perioadaInflorire, cicluDeViata, tipPlanta,
+                        locatie, imagineUrl, numarPetale, culoare, tipCoroana, tipFrunza, pomFructifer, produceFructe, tipTulpina, poateFiUscata
                 );
 
                 plantaRepository.salveazaPlantaNoua(
-                    nouaPlanta, userId, imagineUrl, 5, "Diverse", "-", "Simplă", false, false, "Erectă"
+                    nouaPlanta, userId, imagineUrl, numarPetale, culoare, tipCoroana, tipFrunza, pomFructifer, produceFructe, tipTulpina
                 );
 
-                List<Planta> dupaSalvare = plantaRepository.extrageToatePlantele();
-                targetPlantaId = dupaSalvare.get(dupaSalvare.size() - 1).getId();
+                targetPlantaId = plantaRepository.extrageUltimulIdPlanta();
             }
 
-            // 2. Salvare EXCLUSIVĂ în capturi_plante (Privat: este_publica = FALSE)
-            plantaRepository.adaugaCapturaInGalerie(targetPlantaId, userId, imagineUrl, "Nespecificată", false);
+            // Salvare în capturi (Ierbar Personal)
+            plantaRepository.adaugaCapturaInGalerie(targetPlantaId, userId, imagineUrl, locatie, false);
 
             List<CapturaPlanta> capturi = plantaRepository.extrageIerbarPersonalUser(userId);
             int capturaId = capturi.isEmpty() ? 0 : capturi.get(0).getId();
@@ -185,6 +218,27 @@ public class PlantaController {
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("mesaj", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/capturi/{capturaId}/publica")
+    public ResponseEntity<?> publicaCapturaDinIerbarPersonal(
+            @PathVariable int capturaId, 
+            @RequestBody Map<String, Object> payload, 
+            Principal principal) {
+        try {
+            General user = obtineUtilizatorDinPrincipal(principal);
+            if (user == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
+            // Extragem locația editată pe care a validat-o utilizatorul în prompt
+            String locatie = payload.getOrDefault("locatie", "Nespecificată").toString();
+
+            // Trimitem locația mai departe în repository
+            plantaRepository.marcheazaCapturaPublica(capturaId, user.getId(), locatie);
+
+            return ResponseEntity.ok(Map.of("mesaj", "Fotografia a devenit publică!"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Eroare la publicare: " + e.getMessage());
         }
     }
 
@@ -353,12 +407,17 @@ public class PlantaController {
     @GetMapping("/curiozitatea-zilei")
     public ResponseEntity<?> getCuriozitateaZilei() {
         try {
-            // Folosim noua metodă care extrage tot istoricul pentru calendar
             List<CuriozitatePlanta> curiozitati = plantaRepository.extrageIstoricCuriozitati();
+            java.time.LocalDate azi = java.time.LocalDate.now();
 
-            // Dacă baza de date e goală, generăm prima curiozitate pe loc
-            if (curiozitati.isEmpty()) {
+            // Verificăm dacă există cel puțin o curiozitate generată AȘADAR PENTRU ZIUA DE AZI
+            boolean areCuriozitateAzi = curiozitati.stream()
+                    .anyMatch(c -> c.getDataGenerare() != null && c.getDataGenerare().equals(azi));
+
+            // Dacă nu avem nicio curiozitate pentru azi, o generăm automat pe loc!
+            if (!areCuriozitateAzi) {
                 curiozitateSchedulerService.genereazaSiSalveazaCuriozitate();
+                // Reîncărcăm lista actualizată
                 curiozitati = plantaRepository.extrageIstoricCuriozitati();
             }
 

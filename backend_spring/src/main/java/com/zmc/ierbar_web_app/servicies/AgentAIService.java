@@ -1,6 +1,7 @@
 package com.zmc.ierbar_web_app.servicies;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -124,27 +125,43 @@ public class AgentAIService {
 
     public Map<String, String> genereazaDetaliiBotanice(String numeSpecie) {
         try {
-            String prompt = "Descrie în limba română în 2-3 fraze planta: " + numeSpecie + 
-                            ". Menționează familia botanică, aspectul florii și utilizarea ei.";
+            String prompt = "Ești un expert botanist. Generează fișa tehnică detaliată pentru planta cu numele: '" + numeSpecie + "'. " +
+                    "Răspunde STRICT sub formă de JSON cu următoarele chei și folosește limba română: " +
+                    "\"nume_uzual\", \"denumire_stiintifica\", \"familie\", \"descriere\" (maxim 2 fraze captivante), " +
+                    "\"categorie_planta\" (alege strict una din: FLOARE, ARBORE, ARBUST, IARBA, FERIGA, MUSCHI, ALTA), " +
+                    "\"tip_planta\" (alege strict una din: ORNAMENTALA, MEDICINALA, AROMATICA, TOXICA, FRUCTIFERA, CARNIVORA, ALTA), " +
+                    "\"inaltime_maxima\" (doar cifre, ex: 0.5), \"perioada_inflorire\", \"ciclu_de_viata\" (PEREN, ANUAL, BIENAL), " +
+                    "\"numar_petale\" (cifra, pune 0 daca nu are), \"culoare\", \"tip_coroana\", \"tip_frunza\", \"tip_tulpina\", " +
+                    "\"pom_fructifer\" (true/false), \"produce_fructe\" (true/false), \"poate_fi_uscata\" (true/false). " +
+                    "NU adăuga formatare markdown (```json).";
 
             String descriereGenerata = apeleazaGeminiApi(prompt);
 
-            return Map.of(
-                "nume_uzual", numeSpecie,
-                "denumire_stiintifica", numeSpecie,
-                "familie", "Familie Botanică",
-                "descriere", descriereGenerata
-            );
-        } catch (Exception e) {
-            // Afișăm eroarea reală în consolă pentru a ști de ce eșuează Gemini
-            System.err.println("Eroare la apelul Gemini AI pentru specia " + numeSpecie + ": " + e.getMessage());
+            String jsonResult = descriereGenerata.replaceAll("(?s)```json\\n?(.*?)\\n?```", "$1").trim();
+            jsonResult = jsonResult.replaceAll("(?s)```\\n?(.*?)\\n?```", "$1").trim();
+
+            // 💡 REZOLVAREA: Citim totul ca Object (suportă numere, booleeni și texte)
+            @SuppressWarnings("unchecked")
+            Map<String, Object> rawMap = objectMapper.readValue(jsonResult, Map.class);
+
+            // Apoi trecem prin ele și le transformăm curat și sigur în String-uri
+            Map<String, String> finalMap = new HashMap<>();
+            for (Map.Entry<String, Object> entry : rawMap.entrySet()) {
+                finalMap.put(entry.getKey(), String.valueOf(entry.getValue()));
+            }
+
+            return finalMap;
             
-            // Fallback DINAMIC (fără nicio referință hardcodată la Păpădie!)
+        } catch (Exception e) {
+            System.err.println("Eroare la apelul Gemini AI (Text) pentru specia " + numeSpecie + ": " + e.getMessage());
+            
             return Map.of(
                 "nume_uzual", numeSpecie,
-                "denumire_stiintifica", numeSpecie,
-                "familie", "Generală",
-                "descriere", numeSpecie + " este o specie de plantă identificată prin scanare foto."
+                "denumire_stiintifica", numeSpecie + " spp.",
+                "familie", "Necunoscută",
+                "descriere", "O plantă interesantă din natură.",
+                "categorie_planta", "FLOARE",
+                "tip_planta", "ORNAMENTALA"
             );
         }
     }

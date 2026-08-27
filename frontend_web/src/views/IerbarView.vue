@@ -66,12 +66,25 @@
             <p>{{ plantaSelectata.descriere || (plantaSelectata.planta && plantaSelectata.planta.descriere) || 'Exemplar din colecția ta personală.' }}</p>
           </div>
 
-          <!-- DETALII SCANARE PERSONALĂ -->
+          <!-- DETALII SCANARE PERSONALĂ & BUTON DE PUBLICARE GLOBALĂ -->
           <div v-if="plantaSelectata.esteScanata" class="sectiune-personal-info">
             <hr class="separator-modal" />
             <h4>📍 Detaliile Capturii Tale:</h4>
             <p><strong>Locație:</strong> {{ plantaSelectata.locatie || 'Nespecificată' }}</p>
             <p><strong>Data scanării:</strong> {{ formateazaData(plantaSelectata.dataAdaugarii) }}</p>
+
+            <div class="actiuni-captura-modal">
+              <button 
+                v-if="!plantaSelectata.este_publica && !plantaSelectata.estePublica" 
+                @click="publicaFotografie(plantaSelectata)" 
+                class="btn-publica-global"
+              >
+                🌐 Publică în Galeria Comunității
+              </button>
+              <div v-else class="badge-publicat-global">
+                ✅ Această fotografie este publică în Galeria Globală
+              </div>
+            </div>
           </div>
 
           <!-- HABITAT NATURAL (PENTRU PLANTE SALVATE DIN CATALOG) -->
@@ -175,8 +188,7 @@ const incarcaIerbarulPersonal = async () => {
     const capturiScanate = (resCapturi.status === 'fulfilled' && resCapturi.value.data) 
       ? resCapturi.value.data.map(c => ({
           ...c,
-          // Dacă c.planta există din relația compusă Java, luăm datele de acolo
-          id: c.id, // ID-ul capturii
+          id: c.id, 
           nume_uzual: c.planta?.nume_uzual || 'Plantă Scanată',
           denumire_stiintifica: c.planta?.denumire_stiintifica || '',
           familie: c.planta?.familie || 'Asteraceae',
@@ -185,7 +197,7 @@ const incarcaIerbarulPersonal = async () => {
           ciclu_de_viata: c.planta?.ciclu_de_viata,
           tip_planta: c.planta?.tip_planta,
           inaltime_maxima: c.planta?.inaltime_maxima,
-          esteScanata: true // <--- IMPORTANT
+          esteScanata: true 
         })) 
       : []
 
@@ -232,6 +244,54 @@ const inchideDetalii = () => {
   document.body.style.overflow = 'auto'
 }
 
+// 💡 NOUA FUNCȚIE PENTRU PUBLICARE DIN IERBAR
+const publicaFotografie = async (captura) => {
+  const locatieCurenta = captura.locatie && captura.locatie !== 'Nespecificată' ? captura.locatie : ''
+  
+  // Apelăm componenta ta custom de notificare pe post de Prompt!
+  const locatieEditata = await notificare({
+    titlu: "🌍 Publică în Galerie",
+    mesaj: "Confirmă sau editează locația:\n(Lasă gol dacă vrei să rămână anonimă locația pe hartă. Atenție: locația se va actualiza și pe cardul tău.)",
+    estePrompt: true, // <--- Activăm noul input!
+    valoareDefault: locatieCurenta,
+    placeholder: "ex: Parcul Herăstrău, București"
+  })
+
+  // Dacă utilizatorul apasă butonul "Anulează", modalul returnează null
+  if (locatieEditata === null) return
+
+  const locatieFinala = locatieEditata.trim() !== '' ? locatieEditata.trim() : 'Nespecificată'
+
+  try {
+    const token = localStorage.getItem('jwt_token')
+    
+    // Trimitem noua locație către backend
+    await axios.put(
+      `http://localhost:8080/api/plante/capturi/${captura.id}/publica`, 
+      { locatie: locatieFinala },
+      { headers: { 'Authorization': `Bearer ${token}` } }
+    )
+
+    // Actualizăm starea plantei direct în interfață
+    captura.este_publica = true
+    captura.estePublica = true
+    captura.locatie = locatieFinala // Actualizăm textul locației pe card
+
+    await notificare({
+      titlu: "Publicat în Galerie! 🌐",
+      mesaj: "Fotografia ta a devenit publică și ajută comunitatea Ierbarului Global!",
+      tip: "success"
+    })
+  } catch (eroare) {
+    console.error("Eroare la publicare:", eroare)
+    await notificare({
+      titlu: "Eroare la Publicare",
+      mesaj: "Nu am putut face fotografia publică. Încearcă din nou.",
+      tip: "error"
+    })
+  }
+}
+
 const googleMapsUrl = computed(() => {
   const locatiiToate = [...locatiiSpecie.value]
   const locAdmin = plantaSelectata.value?.locatie || plantaSelectata.value?.planta?.locatie
@@ -271,6 +331,11 @@ const stergePlanta = async (planta) => {
       await axios.delete(`http://localhost:8080/api/plante/captura/${planta.id}`, config)
     } else {
       await axios.delete(`http://localhost:8080/api/plante/ierbar-personal/${planta.id}`, config)
+    }
+
+    // Închidem detaliile automat dacă era deschisă
+    if (plantaSelectata.value && plantaSelectata.value.id === planta.id) {
+      inchideDetalii()
     }
 
     await incarcaIerbarulPersonal()
@@ -316,7 +381,6 @@ const stergePlanta = async (planta) => {
 .modal-content { background: #ffffff; width: 100%; max-width: 580px; border-radius: 16px; position: relative; display: flex; flex-direction: column; max-height: 85vh; overflow-y: auto; overflow-x: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: popUp 0.3s ease-out forwards; }
 @keyframes popUp { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 
-/* REGULĂ SCROLLBAR IDENTICĂ CU IERBARUL GLOBAL */
 .modal-content::-webkit-scrollbar { width: 6px; }
 .modal-content::-webkit-scrollbar-thumb { background-color: var(--verde-deschis); border-radius: 10px; }
 
@@ -332,6 +396,35 @@ const stergePlanta = async (planta) => {
 .sectiune-descriere h4, .sectiune-personal-info h4, .sectiune-habitat h4, .sectiune-habitat-harta h4 { margin: 20px 0 10px 0; color: var(--verde-inchis); }
 .sectiune-personal-info { background: #f4faeb; padding: 12px; border-radius: 10px; border-left: 4px solid var(--verde-deschis); }
 .text-habitat { color: #555; font-size: 0.9rem; font-style: italic; background: #f4faeb; padding: 10px; border-left: 4px solid var(--verde-deschis); }
+
+/* STILURI NOI PENTRU BUTONUL DE PUBLICARE DIN MODAL */
+.actiuni-captura-modal { margin-top: 15px; text-align: center; }
+.btn-publica-global {
+  width: 100%;
+  padding: 12px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: bold;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: 0.3s;
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2);
+}
+.btn-publica-global:hover {
+  background: #2563eb;
+  transform: translateY(-2px);
+}
+.badge-publicat-global {
+  background: #ecfdf5;
+  color: #10b981;
+  padding: 10px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 0.9rem;
+  border: 1px solid #a7f3d0;
+}
 
 .btn-deschide-galerie { 
   width: 100%; 
