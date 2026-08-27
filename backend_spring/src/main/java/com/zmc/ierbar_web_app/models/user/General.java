@@ -12,8 +12,8 @@ public class General extends User {
         super();
     }
 
-    public General(int id, String username, String password, String email, String status) {
-        super(id, username, password, email, TipUser.GENERAL, status);
+    public General(int id, String username, String password, String email, String status, String imagine_url) {
+        super(id, username, password, email, TipUser.GENERAL, status, imagine_url);
         this.planteFavorite=new ArrayList<>();
         this.istoricChatAI=new ArrayList<>();
     }

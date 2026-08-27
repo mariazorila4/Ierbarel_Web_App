@@ -23,7 +23,7 @@ public class UserRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-   public General cautaUserDupaEmail(String email){
+    public General cautaUserDupaEmail(String email){
         String sqlUser="SELECT * FROM users WHERE email=?";
 
         try{
@@ -36,6 +36,10 @@ public class UserRepository {
                 g.setPassword(rs.getString("password"));
                 g.setStatus(rs.getString("status"));
                 
+                try {
+                    g.setImagine_url(rs.getString("imagine_url"));
+                } catch (Exception ignored) {}
+
                 if(rs.getString("tip_user") != null) {
                     g.setTip_user(TipUser.valueOf(rs.getString("tip_user")));
                 }
@@ -61,6 +65,11 @@ public class UserRepository {
             g.setUsername(rs.getString("username"));
             g.setPassword(rs.getString("password"));
             g.setEmail(rs.getString("email"));
+            
+            try {
+                g.setImagine_url(rs.getString("imagine_url"));
+            } catch (Exception ignored) {}
+
             return g;
         }, idUser);
 
@@ -239,6 +248,10 @@ public class UserRepository {
                 g.setPassword(rs.getString("password"));
                 g.setStatus(rs.getString("status"));
                 
+                try {
+                    g.setImagine_url(rs.getString("imagine_url"));
+                } catch (Exception ignored) {}
+
                 if(rs.getString("tip_user") != null) {
                     g.setTip_user(TipUser.valueOf(rs.getString("tip_user")));
                 }
@@ -248,5 +261,19 @@ public class UserRepository {
         }catch(EmptyResultDataAccessException e){
             return null;
         }
+    }
+
+    // ==========================================
+    // 👤 GESTIONARE PROFIL (CU SUPORT IMAGINE_PROFIL)
+    // ==========================================
+
+    public void actualizeazaProfil(int userId, String username, String email, String imagineUrl) {
+        String sql = "UPDATE users SET username = ?, email = ?, imagine_url = ? WHERE id = ?";
+        jdbcTemplate.update(sql, username, email, imagineUrl, userId);
+    }
+
+    public void actualizeazaParola(int userId, String parolaEncodata) {
+        String sql = "UPDATE users SET password = ? WHERE id = ?";
+        jdbcTemplate.update(sql, parolaEncodata, userId);
     }
 }

@@ -25,16 +25,20 @@ public abstract class User {
     @Column("status")
     private String status;
 
+    @Column("imagine_url")
+    private String imagine_url;
+
     public User() {
     }
 
-    public User(int id, String username, String password, String email, TipUser tip_user, String status) {
+    public User(int id, String username, String password, String email, TipUser tip_user, String status, String imagine_url) {
         this.id = id;
         this.username = username;
         this.password = password;
         this.email = email;
         this.tip_user = tip_user;
         this.status=status;
+        this.imagine_url=imagine_url;
     }
 
     public int getId() {
@@ -99,4 +103,13 @@ public abstract class User {
     public void setStatus(String status) {
         this.status = status;
     }
+
+    public String getImagine_url() {
+        return imagine_url;
+    }
+
+    public void setImagine_url(String imagine_url) {
+        this.imagine_url = imagine_url;
+    }
+
 }

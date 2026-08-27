@@ -10,8 +10,8 @@ public class Admin extends User {
         super();
     }
 
-    public Admin(int id, String username, String password, String email, String status) {
-        super(id, username, password, email, TipUser.ADMIN, status);
+    public Admin(int id, String username, String password, String email, String status, String imagine_url) {
+        super(id, username, password, email, TipUser.ADMIN, status, imagine_url);
         this.planteIerbarOnline=new ArrayList<>();
     }
 
