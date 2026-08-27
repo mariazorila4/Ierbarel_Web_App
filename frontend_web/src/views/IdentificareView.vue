@@ -11,65 +11,34 @@
           {{ esteDesktop ? 'Selectează sau trage o poză cu floarea din calculator, iar asistentul nostru o va analiza.' : 'Fotografiază floarea pe loc sau încarcă o imagine din galerie, iar asistentul nostru o va analiza.' }}
         </p>
         
-        <!-- Input ascuns pentru Galerie / Explorer -->
-        <input 
-          type="file" 
-          ref="inputGalerie" 
-          accept="image/png, image/jpeg, image/jpg" 
-          class="input-ascuns" 
-          @change="previzualizeazaImagine" 
-        />
+        <input type="file" ref="inputGalerie" accept="image/png, image/jpeg, image/jpg" class="input-ascuns" @change="previzualizeazaImagine" />
+        <input type="file" ref="inputCamera" accept="image/*" capture="environment" class="input-ascuns" @change="previzualizeazaImagine" />
 
-        <!-- Input ascuns pentru Cameră pe mobil -->
-        <input 
-          type="file" 
-          ref="inputCamera" 
-          accept="image/*" 
-          capture="environment" 
-          class="input-ascuns" 
-          @change="previzualizeazaImagine" 
-        />
-
-        <!-- ZONĂ UPLOAD DESKTOP -->
-        <div 
-          v-if="!imagineSelectata && esteDesktop" 
-          class="zona-upload zona-desktop"
-          @click="deschideGalerie"
-          @dragover.prevent
-          @drop.prevent="trageFisier"
-        >
+        <!-- UPLOAD DESKTOP / MOBIL -->
+        <div v-if="!imagineSelectata && esteDesktop" class="zona-upload zona-desktop" @click="deschideGalerie" @dragover.prevent @drop.prevent="trageFisier">
           <div class="iconita-upload">💻</div>
           <p><strong>Apasă pentru a alege o poză din calculator</strong></p>
           <small>sau trage imaginea direct aici (Drag & Drop)</small>
         </div>
 
-        <!-- ZONĂ UPLOAD MOBIL -->
         <div v-else-if="!imagineSelectata && !esteDesktop" class="zona-selectie-dubla">
           <div class="zona-upload" @click="deschideCamera">
             <div class="iconita-upload">📷</div>
             <p><strong>Fă o poză pe loc</strong></p>
-            <small>Deschide camera foto</small>
           </div>
-
           <div class="zona-upload" @click="deschideGalerie">
             <div class="iconita-upload">🖼️</div>
             <p><strong>Alege din Galerie</strong></p>
-            <small>Încarcă un fișier PNG sau JPG</small>
           </div>
         </div>
 
-        <!-- PREVIZUALIZARE -->
         <div v-else class="previzualizare">
           <p>Imagine selectată:</p>
           <img :src="previewUrl" alt="Previzualizare" class="poza-mica" />
           <button @click="schimbaPoza" class="btn-schimba">✖ Schimbă Poza</button>
         </div>
 
-        <button 
-          @click="trimiteSpreAnaliza" 
-          class="btn-mare btn-verde" 
-          :disabled="!imagineSelectata || seProceseaza"
-        >
+        <button @click="trimiteSpreAnaliza" class="btn-mare btn-verde" :disabled="!imagineSelectata || seProceseaza">
           {{ seProceseaza ? 'Analizăm imaginea... ⏳' : 'Analizează Planta' }}
         </button>
 
@@ -78,16 +47,35 @@
           <div class="rezultat-header">
             <span class="icon-rezultat">🌿</span>
             <div>
-              <h3>{{ plantaDetectata.nume_uzual }}</h3>
-              <p class="stiintific"><em>{{ plantaDetectata.denumire_stiintifica }}</em></p>
+              <h3>{{ plantaDetectata.nume_uzual || plantaDetectata.numeUzual }}</h3>
+              <p class="stiintific"><em>{{ plantaDetectata.denumire_stiintifica || plantaDetectata.denumireStiintifica }}</em></p>
+              <span v-if="plantaDetectata.familie" class="badge-familie">🌿 {{ plantaDetectata.familie }}</span>
             </div>
           </div>
 
-          <p class="descriere-rezultat">{{ plantaDetectata.descriere }}</p>
+          <p class="descriere-rezultat">{{ plantaDetectata.descriere || 'Specie identificată automat prin scanare foto.' }}</p>
 
-          <button @click="salveazaInIerbar(plantaDetectata.id)" class="btn-salveaza">
-            ❤️ Salvează în Ierbarul Meu
-          </button>
+          <!-- SECTIUNEA DE SALVARE ÎN IERBAR (CU LOCAȚIE) -->
+          <div v-if="!esteSalvataInIerbar" class="grup-salvare">
+            <label for="input-locatie" class="label-locatie">📍 Locația unde ai găsit planta (opțional):</label>
+            <input 
+              id="input-locatie"
+              v-model="locatieGasita" 
+              type="text" 
+              placeholder="ex: Parcul Herăstrău, București" 
+              class="input-text"
+            />
+            
+            <button @click="salveazaInIerbar" class="btn-salveaza" :disabled="seSalveaza">
+              {{ seSalveaza ? 'Se salvează... ⏳' : '❤️ Salvează în Ierbarul Personal' }}
+            </button>
+          </div>
+
+          <!-- MESAJ SUCCES DUPĂ SALVARE -->
+          <div v-else class="sectiune-publicare">
+            <p class="text-succes-salvare">✅ Planta a fost salvată în Ierbarul tău Personal!</p>
+            <p class="text-info-secundar">Dacă dorești să o faci publică, mergi în Ierbarul Personal și apasă "Publică în Galerie".</p>
+          </div>
         </div>
       </div>
     </div>
@@ -111,17 +99,17 @@ const previewUrl = ref(null)
 const seProceseaza = ref(false)
 const plantaDetectata = ref(null)
 
+const esteSalvataInIerbar = ref(false)
+const locatieGasita = ref('')
+const seSalveaza = ref(false)
+
 const mergiInapoi = () => router.push('/dashboard')
 
 const afiseazaNotificare = async (opts) => {
   if (notificareInjectat) {
     return await notificareInjectat(opts)
   } else {
-    if (opts.esteConfirmare) {
-      return confirm(opts.mesaj)
-    } else {
-      alert(`${opts.titlu}: ${opts.mesaj}`)
-    }
+    alert(`${opts.titlu}: ${opts.mesaj}`)
   }
 }
 
@@ -130,48 +118,26 @@ onMounted(() => {
   esteDesktop.value = !/android|ipad|iphone|ipod/i.test(agent)
 })
 
-const deschideCamera = async () => {
-  const permisiune = await afiseazaNotificare({
-    titlu: "Permisiune Cameră 📸",
-    mesaj: "Aplicația are nevoie de acces la camera foto pentru a fotografia planta.",
-    tip: "success",
-    esteConfirmare: true
-  })
-
-  if (permisiune && inputCamera.value) {
-    inputCamera.value.click()
-  }
-}
-
-const deschideGalerie = () => {
-  if (inputGalerie.value) {
-    inputGalerie.value.click()
-  }
-}
+const deschideCamera = () => inputCamera.value?.click()
+const deschideGalerie = () => inputGalerie.value?.click()
 
 const trageFisier = (event) => {
   const fisier = event.dataTransfer.files[0]
-  prelucreazaFisier(fisier)
+  if (fisier) prelucreazaFisier(fisier)
 }
 
 const previzualizeazaImagine = (event) => {
   const fisier = event.target.files[0]
-  prelucreazaFisier(fisier)
+  if (fisier) prelucreazaFisier(fisier)
 }
 
 const prelucreazaFisier = (fisier) => {
-  if (fisier) {
-    if (!fisier.type.startsWith('image/')) {
-      afiseazaNotificare({
-        titlu: "Fișier Invalid",
-        mesaj: "Te rugăm să alegi o imagine validă (.png, .jpg sau .jpeg).",
-        tip: "error"
-      })
-      return
-    }
+  if (fisier && fisier.type.startsWith('image/')) {
     imagineSelectata.value = fisier
     previewUrl.value = URL.createObjectURL(fisier)
     plantaDetectata.value = null
+    esteSalvataInIerbar.value = false
+    locatieGasita.value = ''
   }
 }
 
@@ -179,8 +145,8 @@ const schimbaPoza = () => {
   imagineSelectata.value = null
   previewUrl.value = null
   plantaDetectata.value = null
-  if (inputGalerie.value) inputGalerie.value.value = ''
-  if (inputCamera.value) inputCamera.value.value = ''
+  esteSalvataInIerbar.value = false
+  locatieGasita.value = ''
 }
 
 const trimiteSpreAnaliza = async () => {
@@ -189,67 +155,82 @@ const trimiteSpreAnaliza = async () => {
   try {
     seProceseaza.value = true
     plantaDetectata.value = null
+    esteSalvataInIerbar.value = false
 
     const token = localStorage.getItem('jwt_token')
-    const userId = localStorage.getItem('user_id') || 1
-
     const formData = new FormData()
     formData.append('file', imagineSelectata.value)
-    formData.append('user_id', userId)
 
     const raspuns = await axios.post('http://localhost:8080/api/plante/scaneaza', formData, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'multipart/form-data'
-      }
+      headers: { 'Authorization': `Bearer ${token}` }
     })
 
-    if (raspuns.data && raspuns.data.nume_uzual) {
+    if (raspuns.data) {
       plantaDetectata.value = raspuns.data
       await afiseazaNotificare({
         titlu: "Identificare Reușită! 🎉",
-        mesaj: `Specia identificată: ${raspuns.data.nume_uzual}!`,
+        mesaj: `Specia identificată: ${raspuns.data.nume_uzual || raspuns.data.numeUzual}!`,
         tip: "success"
       })
     }
   } catch (eroare) {
-    console.error("Eroare la scanare:", eroare)
-    
-    let mesajEroare = "A apărut o problemă la procesarea imaginii. Verifică dacă serverul Python (YOLO) este pornit pe portul 5000."
-    if (eroare.response && eroare.response.data) {
-      mesajEroare = typeof eroare.response.data === 'object'
-        ? JSON.stringify(eroare.response.data, null, 2)
-        : eroare.response.data
-    }
-
-    await afiseazaNotificare({
-      titlu: "Eroare la Scanare",
-      mesaj: mesajEroare,
-      tip: "error"
-    })
+    await afiseazaNotificare({ titlu: "Eroare la Scanare", mesaj: "Nu s-a putut procesa imaginea.", tip: "error" })
   } finally {
     seProceseaza.value = false
   }
 }
 
-const salveazaInIerbar = async (plantaId) => {
+// SALVARE STRICT ÎN IERBAR PERSONAL
+const salveazaInIerbar = async () => {
+  if (!plantaDetectata.value) return
+
   try {
+    seSalveaza.value = true
     const token = localStorage.getItem('jwt_token')
-    await axios.post(`http://localhost:8080/api/plante/ierbar-personal/${plantaId}`, {}, {
+    const imgBase64 = plantaDetectata.value.imagine_url || plantaDetectata.value.imagineUrl || previewUrl.value
+
+    const payload = {
+      nume_uzual: plantaDetectata.value.nume_uzual || plantaDetectata.value.numeUzual || 'Plantă Scanată',
+      denumire_stiintifica: plantaDetectata.value.denumire_stiintifica || plantaDetectata.value.denumireStiintifica || 'Specie Botanică',
+      familie: plantaDetectata.value.familie || 'Familie Botanică',
+      descriere: plantaDetectata.value.descriere || 'Identificată prin scanare foto.',
+      imagine_url: imgBase64,
+      locatie: locatieGasita.value || 'Nespecificată',
+      categorie_planta: plantaDetectata.value.categorie_planta || plantaDetectata.value.categorie || 'FLOARE',
+      tip_planta: plantaDetectata.value.tip_planta || plantaDetectata.value.tipPlanta || 'ORNAMENTALA',
+      inaltime_maxima: plantaDetectata.value.inaltime_maxima || plantaDetectata.value.inaltimeMaxima || 0.5,
+      perioada_inflorire: plantaDetectata.value.perioada_inflorire || plantaDetectata.value.perioadaInflorire || 'Primăvară - Vară',
+      ciclu_de_viata: plantaDetectata.value.ciclu_de_viata || plantaDetectata.value.cicluDeViata || 'PEREN',
+      numar_petale: plantaDetectata.value.numar_petale || plantaDetectata.value.numarPetale || 5,
+      culoare: plantaDetectata.value.culoare || 'Diverse',
+      tip_coroana: plantaDetectata.value.tip_coroana || plantaDetectata.value.tipCoroana || 'Nespecificată',
+      tip_frunza: plantaDetectata.value.tip_frunza || plantaDetectata.value.tipFrunza || 'Simplă',
+      tip_tulpina: plantaDetectata.value.tip_tulpina || plantaDetectata.value.tipTulpina || 'Erectă',
+      pom_fructifer: plantaDetectata.value.pom_fructifer || plantaDetectata.value.pomFructifer || false,
+      produce_fructe: plantaDetectata.value.produce_fructe || plantaDetectata.value.produceFructe || false,
+      poate_fi_uscata: plantaDetectata.value.poate_fi_uscata || plantaDetectata.value.poateFiUscata || false
+    }
+
+    await axios.post('http://localhost:8080/api/plante/salveaza-scanare', payload, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
 
+    esteSalvataInIerbar.value = true
+
     await afiseazaNotificare({
       titlu: "Plantă Salvată!",
-      mesaj: "Specia a fost adăugată în Ierbarul tău personal. 🌸",
+      mesaj: "Specia a fost adăugată în Ierbarul tău Personal. 🌸",
       tip: "success"
     })
   } catch (eroare) {
+    console.error("Eroare la salvare:", eroare)
     await afiseazaNotificare({
       titlu: "Eroare la Salvare",
       mesaj: "Nu am putut adăuga planta în colecție.",
       tip: "error"
     })
+  } finally {
+    seSalveaza.value = false
   }
 }
 </script>
@@ -261,26 +242,13 @@ const salveazaInIerbar = async (plantaId) => {
 .header { display: flex; align-items: center; gap: 20px; border-bottom: 2px solid var(--crem-fundal); padding-bottom: 15px; margin-bottom: 20px; }
 .titlu { color: var(--verde-inchis); margin: 0; }
 .btn-secundar { background: white; border: 1px solid #ddd; padding: 8px 15px; border-radius: 8px; cursor: pointer; transition: 0.3s; color: #555; }
-.btn-secundar:hover { background: #f0f0f0; }
 .descriere { color: #666; margin-bottom: 20px; text-align: center; }
 
 .input-ascuns { display: none; }
-
 .zona-selectie-dubla { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
 
-.zona-upload {
-  border: 2px dashed var(--verde-deschis);
-  background: var(--crem-fundal);
-  border-radius: 12px;
-  padding: 30px 15px;
-  text-align: center;
-  cursor: pointer;
-  transition: 0.3s;
-}
-.zona-upload:hover { background: #eef7d2; border-color: var(--verde-inchis); }
+.zona-upload { border: 2px dashed var(--verde-deschis); background: var(--crem-fundal); border-radius: 12px; padding: 30px 15px; text-align: center; cursor: pointer; transition: 0.3s; }
 .zona-upload.zona-desktop { padding: 45px 20px; }
-.zona-upload p { margin: 8px 0 3px 0; color: #333; }
-.zona-upload small { color: #777; font-size: 0.85rem; }
 .iconita-upload { font-size: 2.8rem; }
 
 .previzualizare { margin-top: 15px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
@@ -289,21 +257,25 @@ const salveazaInIerbar = async (plantaId) => {
 
 .btn-mare { width: 100%; padding: 15px; border: none; border-radius: 10px; font-weight: bold; font-size: 1.1rem; color: white; margin-top: 20px; cursor: pointer; transition: 0.3s; }
 .btn-verde { background-color: var(--verde-inchis); }
-.btn-verde:hover:not(:disabled) { background-color: var(--verde-deschis); color: #333; }
 .btn-verde:disabled { background-color: #ccc; cursor: not-allowed; }
 
 /* Card Rezultat */
-.card-rezultat { background: #f4faeb; border-left: 5px solid var(--verde-inchis); padding: 20px; border-radius: 12px; margin-top: 25px; text-align: left; animation: popIn 0.3s ease-out; }
-@keyframes popIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+.card-rezultat { background: #f4faeb; border-left: 5px solid var(--verde-inchis); padding: 20px; border-radius: 12px; margin-top: 25px; text-align: left; }
 .rezultat-header { display: flex; align-items: center; gap: 15px; }
 .icon-rezultat { font-size: 2.2rem; }
-.rezultat-header h3 { margin: 0; color: var(--verde-inchis); }
 .stiintific { color: #777; margin: 3px 0 0 0; }
-.descriere-rezultat { color: #444; line-height: 1.5; margin: 15px 0; }
-.btn-salveaza { background: #ffebeb; color: #e74c3c; border: 1px solid #ffb3b3; padding: 10px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; transition: 0.3s; }
-.btn-salveaza:hover { background: #e74c3c; color: white; }
+.badge-familie { display: inline-block; font-size: 0.8rem; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 10px; margin-top: 4px; font-weight: bold; }
+.descriere-rezultat { color: #444; line-height: 1.5; margin: 15px 0; font-size: 0.95rem; }
 
-@media (max-width: 500px) {
-  .zona-selectie-dubla { grid-template-columns: 1fr; }
-}
+/* Grup Salvare Nou */
+.grup-salvare { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; border-top: 1px dashed #ccc; padding-top: 15px; }
+.label-locatie { font-size: 0.9rem; color: #555; font-weight: 500; }
+.input-text { padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 0.95rem; width: 100%; box-sizing: border-box; }
+
+.btn-salveaza { background: #ffebeb; color: #e74c3c; border: 1px solid #ffb3b3; padding: 12px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; transition: 0.3s; width: 100%; }
+.btn-salveaza:hover:not(:disabled) { background: #e74c3c; color: white; }
+
+.sectiune-publicare { margin-top: 20px; border-top: 1px dashed #ccc; padding-top: 15px; text-align: center; }
+.text-succes-salvare { color: #27ae60; font-weight: bold; margin-bottom: 5px; font-size: 1.05rem; }
+.text-info-secundar { color: #666; font-size: 0.85rem; }
 </style>

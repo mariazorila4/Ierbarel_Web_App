@@ -1,7 +1,8 @@
 package com.zmc.ierbar_web_app.models.user;
-import com.zmc.ierbar_web_app.models.simple_factory.Planta;
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
+
+import com.zmc.ierbar_web_app.models.simple_factory.Planta;
 
 public class General extends User {
     private List<Planta> planteFavorite;
@@ -11,8 +12,8 @@ public class General extends User {
         super();
     }
 
-    public General(int id, String username, String password, String email) {
-        super(id, username, password, email, TipUser.GENERAL);
+    public General(int id, String username, String password, String email, String status) {
+        super(id, username, password, email, TipUser.GENERAL, status);
         this.planteFavorite=new ArrayList<>();
         this.istoricChatAI=new ArrayList<>();
     }
