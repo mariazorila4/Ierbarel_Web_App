@@ -35,7 +35,7 @@ import com.zmc.ierbar_web_app.servicies.PlantaService;
 
 @RestController
 @RequestMapping("/api/plante")
-@CrossOrigin(origins={"http://localhost:5173", "http://127.0.0.1:5173"})
+@CrossOrigin(origins={"http://localhost:5173", "http://127.0.0.1:5173", "https://ierbarel.netlify.app"})
 public class PlantaController {
     private final PlantaRepository plantaRepository;
     private final UserRepository userRepository;
