@@ -295,4 +295,21 @@ public class UserRepository {
             "eroriServerAstazi", 0
         );
     }
+
+    public List<MesajChat> extrageIstoricChat(int userId) {
+        String sql = "SELECT * FROM istoric_chat WHERE user_id = ? ORDER BY data_trimiterii ASC";
+        
+        return jdbcTemplate.query(sql, (rs, rand) -> {
+            MesajChat mesaj = new MesajChat();
+            mesaj.setId(rs.getInt("id"));
+            mesaj.setMesaj(rs.getString("mesaj"));
+            mesaj.setEste_bot(rs.getBoolean("este_bot"));
+
+            if (rs.getTimestamp("data_trimiterii") != null) {
+                mesaj.setData_trimiterii(rs.getTimestamp("data_trimiterii").toLocalDateTime());
+            }
+
+            return mesaj;
+        }, userId);
+    }
 }

@@ -1,14 +1,19 @@
 package com.zmc.ierbar_web_app.controllers;
 
 import java.security.Principal;
+import java.util.List;
 import java.util.Map;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframewoek.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.zmc.ierbar_web_app.models.user.General;
 import com.zmc.ierbar_web_app.models.user.MesajChat;
 import com.zmc.ierbar_web_app.models.user.User;
 import com.zmc.ierbar_web_app.repositories.UserRepository;
@@ -24,6 +29,26 @@ public class ChatController {
     public ChatController(AgentAIService agentAIService, UserRepository userRepository) {
         this.agentAIService = agentAIService;
         this.userRepository=userRepository;
+    }
+
+    @GetMapping("/istoric")
+    public ResponseEntity<?> extrageIstoric(Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Utilizator neautentificat.");
+        }
+
+        String identitate = principal.getName();
+        General user = userRepository.cautaUserDupaEmail(identitate);
+        if (user == null) {
+            user = userRepository.cautaUserDupaUsername(identitate);
+        }
+
+        if (user == null) {
+            return ResponseEntity.badRequest().body("Utilizatorul nu a fost găsit.");
+        }
+
+        List<MesajChat> istoric = userRepository.extrageIstoricChat(user.getId());
+        return ResponseEntity.ok(istoric);
     }
 
     @PostMapping("/trimite")
