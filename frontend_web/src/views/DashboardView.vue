@@ -1,20 +1,32 @@
 <template>
   <div class="page-wrapper">
-    <!-- Folosim un card mai lat pentru dashboard -->
     <div class="glass-dashboard">
       
-      <!-- Antetul Dashboard-ului -->
+      <!-- Antet Dashboard -->
       <div class="header">
         <h2 class="titlu">🌱 Bun venit în Ierbărel!</h2>
-        <button @click="deconectare" class="btn-secundar">Deconectare</button>
+        
+        <div class="header-actiuni">
+          <!-- Avatar Circular Interactiv -->
+          <div @click="router.push('/profil')" class="avatar-cerc-container" title="Mergi la Profil">
+            <img 
+              v-if="user.imagine_url" 
+              :src="user.imagine_url" 
+              alt="Profil" 
+              class="poza-avatar-cerc"
+              @error="user.imagine_url = ''" 
+            />
+            <span v-else class="icon-user-fallback">👤</span>
+          </div>
+
+          <button @click="deconectare" class="btn-secundar">Deconectare</button>
+        </div>
       </div>
 
       <p class="subtitlu">Ce minunăție a naturii vrei să explorezi astăzi?</p>
 
-      <!-- Grila cu acțiuni (Meniul principal al utilizatorului) -->
+      <!-- Grila cu acțiuni -->
       <div class="grid-actiuni">
-        
-        <!-- Card 1 -->
         <div class="actiune-card card-verde">
           <div class="iconita">📸</div>
           <h3>Identifică Plantă</h3>
@@ -22,7 +34,6 @@
           <button @click="router.push('/identificare')" class="btn-actiune btn-verde">Începe</button>
         </div>
 
-        <!-- Card 2 -->
         <div class="actiune-card card-albastru">
           <div class="iconita">📚</div>
           <h3>Ierbarul Meu</h3>
@@ -30,7 +41,6 @@
           <button @click="router.push('/ierbar')" class="btn-actiune btn-albastru">Deschide</button>
         </div>
 
-        <!-- Card 3 -->
         <div class="actiune-card card-roz">
           <div class="iconita">🌸</div>
           <h3>Curiozități</h3>
@@ -38,17 +48,17 @@
           <button @click="router.push('/curiozitati')" class="btn-actiune btn-roz">Citește</button>
         </div>
 
-        <!-- Card 4 (NOU) -->
         <div class="actiune-card card-verde-deschis">
           <div class="iconita">🌍</div>
           <h3>Ierbar Global</h3>
           <p>Explorează enciclopedia și caută plante descoperite în întreaga lume.</p>
           <button @click="router.push('/ierbar-global')" class="btn-actiune btn-verde-deschis">Caută Plante</button>
         </div>
-
       </div>
+
     </div>
-    <!-- Butonul plutitor Ghiocel pentru Chat -->
+
+    <!-- Chat Plutitor -->
     <div class="buton-chat-plutitor" @click="router.push('/chat')" title="Întreabă-l pe Ghiocel!">
       <MascotaGhiocel class="mascota-mica" />
       <div class="balon-text">Ai o întrebare?</div>
@@ -57,16 +67,39 @@
 </template>
 
 <script setup>
-import MascotaGhiocel from '../components/MascotaGhiocel.vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
+import MascotaGhiocel from '../components/MascotaGhiocel.vue'
 
 const router = useRouter()
+const user = ref({ username: '', imagine_url: '' })
+
+// Încărcare profil utilizator conectat
+const incarcaUser = async () => {
+  try {
+    const token = localStorage.getItem('jwt_token') 
+    if (!token) return
+
+    const response = await axios.get('http://localhost:8080/api/users/profil', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    user.value = response.data
+  } catch (err) {
+    console.error('Eroare la preluarea pozei de profil:', err)
+  }
+}
 
 const deconectare = () => {
-  // Aici în viitor vei șterge token-ul de sesiune primit de la Spring Boot
-  console.log('Te-ai deconectat cu succes.')
+  localStorage.removeItem('jwt_token')
+  localStorage.removeItem('user_id')
+  localStorage.removeItem('tip_user')
   router.push('/login')
 }
+
+onMounted(() => {
+  incarcaUser()
+})
 </script>
 
 <style scoped>
@@ -79,14 +112,13 @@ const deconectare = () => {
   box-sizing: border-box;
 }
 
-/* Un card mai mare pentru Dashboard */
 .glass-dashboard {
   background: rgba(255, 255, 255, 0.9);
   padding: 2.5rem;
   border-radius: 20px;
   border: 3px solid var(--verde-inchis);
   width: 100%;
-  max-width: 900px; /* Mai lat decât la login */
+  max-width: 900px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.05);
 }
 
@@ -102,6 +134,42 @@ const deconectare = () => {
 .titlu {
   color: var(--verde-inchis);
   margin: 0;
+}
+
+.header-actiuni {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+/* Containerul CERC pentru Poza de Profil */
+.avatar-cerc-container {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2.5px solid var(--verde-inchis);
+  background-color: var(--crem-fundal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.avatar-cerc-container:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(46, 204, 113, 0.3);
+}
+
+.poza-avatar-cerc {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.icon-user-fallback {
+  font-size: 1.4rem;
 }
 
 .subtitlu {
@@ -126,10 +194,9 @@ const deconectare = () => {
   border-color: #e74c3c;
 }
 
-/* Grila care așează cardurile pe 3 coloane (sau 1 pe telefon) */
 .grid-actiuni {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 20px;
 }
 
@@ -175,7 +242,6 @@ const deconectare = () => {
   transition: 0.3s;
 }
 
-/* Stiluri specifice pentru fiecare cartonaș folosind culorile tale */
 .card-verde { border-color: var(--verde-deschis); }
 .btn-verde { background-color: var(--verde-inchis); }
 .btn-verde:hover { background-color: var(--verde-deschis); color: #333; }
@@ -188,11 +254,10 @@ const deconectare = () => {
 .btn-roz { background-color: var(--roz-inchis); }
 .btn-roz:hover { background-color: var(--roz-deschis); color: #333; }
 
-.card-verde-deschis { border-color: #8FAF0F; } /* Am folosit nuanțe din paleta ta */
+.card-verde-deschis { border-color: #8FAF0F; }
 .btn-verde-deschis { background-color: #BDDB45; color: #333; }
 .btn-verde-deschis:hover { background-color: #8FAF0F; color: white; }
 
-/* --- Buton Plutitor Chat --- */
 .buton-chat-plutitor {
   position: fixed;
   bottom: 30px;

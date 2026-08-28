@@ -1,6 +1,7 @@
 package com.zmc.ierbar_web_app.repositories;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -23,7 +24,7 @@ public class UserRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-   public General cautaUserDupaEmail(String email){
+    public General cautaUserDupaEmail(String email){
         String sqlUser="SELECT * FROM users WHERE email=?";
 
         try{
@@ -36,6 +37,10 @@ public class UserRepository {
                 g.setPassword(rs.getString("password"));
                 g.setStatus(rs.getString("status"));
                 
+                try {
+                    g.setImagine_url(rs.getString("imagine_url"));
+                } catch (Exception ignored) {}
+
                 if(rs.getString("tip_user") != null) {
                     g.setTip_user(TipUser.valueOf(rs.getString("tip_user")));
                 }
@@ -61,6 +66,11 @@ public class UserRepository {
             g.setUsername(rs.getString("username"));
             g.setPassword(rs.getString("password"));
             g.setEmail(rs.getString("email"));
+            
+            try {
+                g.setImagine_url(rs.getString("imagine_url"));
+            } catch (Exception ignored) {}
+
             return g;
         }, idUser);
 
@@ -239,6 +249,10 @@ public class UserRepository {
                 g.setPassword(rs.getString("password"));
                 g.setStatus(rs.getString("status"));
                 
+                try {
+                    g.setImagine_url(rs.getString("imagine_url"));
+                } catch (Exception ignored) {}
+
                 if(rs.getString("tip_user") != null) {
                     g.setTip_user(TipUser.valueOf(rs.getString("tip_user")));
                 }
@@ -248,5 +262,37 @@ public class UserRepository {
         }catch(EmptyResultDataAccessException e){
             return null;
         }
+    }
+
+    // ==========================================
+    // 👤 GESTIONARE PROFIL (CU SUPORT IMAGINE_PROFIL)
+    // ==========================================
+
+    public void actualizeazaProfil(int userId, String username, String email, String imagineUrl) {
+        String sql = "UPDATE users SET username = ?, email = ?, imagine_url = ? WHERE id = ?";
+        jdbcTemplate.update(sql, username, email, imagineUrl, userId);
+    }
+
+    public void actualizeazaParola(int userId, String parolaEncodata) {
+        String sql = "UPDATE users SET password = ? WHERE id = ?";
+        jdbcTemplate.update(sql, parolaEncodata, userId);
+    }
+
+    public Map<String, Object> extrageStatisticiSistem() {
+        // Luăm în calcul utilizatorii GENERAL care au status 'ACTIV' (indiferent de majuscule) sau status necompletat (NULL)
+        String sqlUseriActivi = "SELECT COUNT(*) FROM users WHERE tip_user::text = 'GENERAL' AND (status IS NULL OR UPPER(status) = 'ACTIV')";
+        String sqlPlanteIdentificate = "SELECT COUNT(*) FROM plante_favorite";
+        String sqlSpeciiTotale = "SELECT COUNT(*) FROM plante";
+
+        Integer utilizatoriActivi = jdbcTemplate.queryForObject(sqlUseriActivi, Integer.class);
+        Integer planteIdentificate = jdbcTemplate.queryForObject(sqlPlanteIdentificate, Integer.class);
+        Integer speciiBazaDeDate = jdbcTemplate.queryForObject(sqlSpeciiTotale, Integer.class);
+
+        return Map.of(
+            "utilizatoriActivi", utilizatoriActivi != null ? utilizatoriActivi : 0,
+            "planteIdentificate", planteIdentificate != null ? planteIdentificate : 0,
+            "speciiBazaDeDate", speciiBazaDeDate != null ? speciiBazaDeDate : 0,
+            "eroriServerAstazi", 0
+        );
     }
 }

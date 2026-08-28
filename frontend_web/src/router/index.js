@@ -9,6 +9,7 @@ import AdminPlanteView from '../views/AdminPlanteView.vue'
 import AdminStatisticiView from '../views/AdminStatisticiView.vue'
 import IerbarGlobalView from '../views/IerbarGlobalView.vue'
 import ChatView from '../views/ChatView.vue'
+import ProfilView from '../views/ProfilView.vue'
 
 // Cele 3 pagini noi
 import IdentificareView from '../views/IdentificareView.vue'
@@ -32,7 +33,8 @@ const router = createRouter({
     { path: '/admin-utilizatori', component: AdminUtilizatoriView },
     { path: '/admin-plante', component: AdminPlanteView },
     { path: '/admin-statistici', component: AdminStatisticiView },
-    { path: '/chat', component: ChatView }
+    { path: '/chat', component: ChatView },
+    {path:'/profil', component: ProfilView}
   ]
 })
 
