@@ -10,11 +10,11 @@
           <!-- Avatar Circular Interactiv -->
           <div @click="router.push('/profil')" class="avatar-cerc-container" title="Mergi la Profil">
             <img 
-              v-if="user.imagine_profil" 
-              :src="user.imagine_profil" 
+              v-if="user.imagine_url" 
+              :src="user.imagine_url" 
               alt="Profil" 
               class="poza-avatar-cerc"
-              @error="user.imagine_profil = ''" 
+              @error="user.imagine_url = ''" 
             />
             <span v-else class="icon-user-fallback">👤</span>
           </div>
@@ -73,12 +73,12 @@ import axios from 'axios'
 import MascotaGhiocel from '../components/MascotaGhiocel.vue'
 
 const router = useRouter()
-const user = ref({ username: '', imagine_profil: '' })
+const user = ref({ username: '', imagine_url: '' })
 
 // Încărcare profil utilizator conectat
 const incarcaUser = async () => {
   try {
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('jwt_token') 
     if (!token) return
 
     const response = await axios.get('http://localhost:8080/api/users/profil', {
@@ -91,7 +91,9 @@ const incarcaUser = async () => {
 }
 
 const deconectare = () => {
-  localStorage.removeItem('token')
+  localStorage.removeItem('jwt_token')
+  localStorage.removeItem('user_id')
+  localStorage.removeItem('tip_user')
   router.push('/login')
 }
 
@@ -163,7 +165,7 @@ onMounted(() => {
 .poza-avatar-cerc {
   width: 100%;
   height: 100%;
-  object-fit: cover; /* Asigură încadrarea perfectă fără deformare */
+  object-fit: cover;
 }
 
 .icon-user-fallback {

@@ -8,19 +8,19 @@
 
       <div class="statistici-grid">
         <div class="stat-card">
-          <div class="stat-numar">1,204</div>
+          <div class="stat-numar">{{ statistici.utilizatoriActivi }}</div>
           <div class="stat-label">Utilizatori Activi</div>
         </div>
         <div class="stat-card">
-          <div class="stat-numar">8,432</div>
-          <div class="stat-label">Plante Identificate</div>
+          <div class="stat-numar">{{ statistici.planteIdentificate }}</div>
+          <div class="stat-label">Plante identificate de utilizatori</div>
         </div>
         <div class="stat-card">
-          <div class="stat-numar">45</div>
+          <div class="stat-numar">{{ statistici.speciiBazaDeDate }}</div>
           <div class="stat-label">Specii în Baza de Date</div>
         </div>
         <div class="stat-card atentionare">
-          <div class="stat-numar">0</div>
+          <div class="stat-numar">{{ statistici.eroriServerAstazi }}</div>
           <div class="stat-label">Erori Server Astăzi</div>
         </div>
       </div>
@@ -29,10 +29,40 @@
 </template>
 
 <script setup>
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
 
 const router = useRouter()
 const mergiInapoi = () => router.push('/admin-dashboard')
+
+const statistici = ref({
+  utilizatoriActivi: 0,
+  planteIdentificate: 0,
+  speciiBazaDeDate: 0,
+  eroriServerAstazi: 0
+})
+
+const incarcaStatistici = async () => {
+  try {
+    const token = localStorage.getItem('jwt_token')
+    if (!token) {
+      router.push('/login')
+      return
+    }
+
+    const response = await axios.get('http://localhost:8080/api/users/admin/statistici', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    statistici.value = response.data
+  } catch (err) {
+    console.error('Eroare la încărcarea statisticilor:', err)
+  }
+}
+
+onMounted(() => {
+  incarcaStatistici()
+})
 </script>
 
 <style scoped>

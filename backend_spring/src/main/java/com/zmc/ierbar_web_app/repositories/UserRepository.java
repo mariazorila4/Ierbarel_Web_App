@@ -1,6 +1,7 @@
 package com.zmc.ierbar_web_app.repositories;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -275,5 +276,23 @@ public class UserRepository {
     public void actualizeazaParola(int userId, String parolaEncodata) {
         String sql = "UPDATE users SET password = ? WHERE id = ?";
         jdbcTemplate.update(sql, parolaEncodata, userId);
+    }
+
+    public Map<String, Object> extrageStatisticiSistem() {
+        // Luăm în calcul utilizatorii GENERAL care au status 'ACTIV' (indiferent de majuscule) sau status necompletat (NULL)
+        String sqlUseriActivi = "SELECT COUNT(*) FROM users WHERE tip_user::text = 'GENERAL' AND (status IS NULL OR UPPER(status) = 'ACTIV')";
+        String sqlPlanteIdentificate = "SELECT COUNT(*) FROM plante_favorite";
+        String sqlSpeciiTotale = "SELECT COUNT(*) FROM plante";
+
+        Integer utilizatoriActivi = jdbcTemplate.queryForObject(sqlUseriActivi, Integer.class);
+        Integer planteIdentificate = jdbcTemplate.queryForObject(sqlPlanteIdentificate, Integer.class);
+        Integer speciiBazaDeDate = jdbcTemplate.queryForObject(sqlSpeciiTotale, Integer.class);
+
+        return Map.of(
+            "utilizatoriActivi", utilizatoriActivi != null ? utilizatoriActivi : 0,
+            "planteIdentificate", planteIdentificate != null ? planteIdentificate : 0,
+            "speciiBazaDeDate", speciiBazaDeDate != null ? speciiBazaDeDate : 0,
+            "eroriServerAstazi", 0
+        );
     }
 }

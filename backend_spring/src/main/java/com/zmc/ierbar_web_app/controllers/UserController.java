@@ -113,6 +113,16 @@ public class UserController {
         return ResponseEntity.ok(Map.of("mesaj", "Parola a fost schimbată cu succes!"));
     }
 
+    @GetMapping("/admin/statistici")
+    public ResponseEntity<?> getStatisticiSistem(Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        
+        Map<String, Object> statistici = userRepository.extrageStatisticiSistem();
+        return ResponseEntity.ok(statistici);
+    }
+
     // Helper intern pentru extragerea utilizatorului curent
     private General obtineUserDinPrincipal(Principal principal) {
         if (principal == null) return null;

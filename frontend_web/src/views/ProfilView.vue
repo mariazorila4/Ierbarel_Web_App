@@ -102,9 +102,9 @@ const mesaj = ref('')
 const tipMesaj = ref('succes')
 
 const getAuthHeaders = () => {
-  const token = localStorage.getItem('token') // ⚠️ Verifică dacă în localStorage cheia se numește 'token' sau altceva!
-  
-  if (!token || token === 'undefined' || token === 'null') {
+  const token = localStorage.getItem('jwt_token') 
+
+  if (!token || token === 'null' || token === 'undefined') {
     router.push('/login')
     return { headers: {} }
   }

@@ -6,7 +6,7 @@
       <form @submit.prevent="gestioneazaInregistrarea" class="formular">
         <div class="input-group">
           <label>Nume utilizator (Username)</label>
-          <input type="text" v-model.trim="username" placeholder="ex: BotanistulZelos" required />
+          <input type="text" v-model.trim="username" placeholder="ex: ButterFly" required />
         </div>
 
         <div class="input-group">
