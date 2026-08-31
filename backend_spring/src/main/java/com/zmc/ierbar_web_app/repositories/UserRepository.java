@@ -12,6 +12,7 @@ import com.zmc.ierbar_web_app.models.factory.PlantaFactory;
 import com.zmc.ierbar_web_app.models.simple_factory.Planta;
 import com.zmc.ierbar_web_app.models.simple_factory.TipPlanta;
 import com.zmc.ierbar_web_app.models.user.Admin;
+import com.zmc.ierbar_web_app.models.user.Conversatie;
 import com.zmc.ierbar_web_app.models.user.General;
 import com.zmc.ierbar_web_app.models.user.MesajChat;
 import com.zmc.ierbar_web_app.models.user.TipUser;
@@ -294,5 +295,58 @@ public class UserRepository {
             "speciiBazaDeDate", speciiBazaDeDate != null ? speciiBazaDeDate : 0,
             "eroriServerAstazi", 0
         );
+    }
+
+    public List<MesajChat> extrageIstoricChat(int userId) {
+        String sql = "SELECT * FROM istoric_chat WHERE user_id = ? ORDER BY data_trimiterii ASC";
+        
+        return jdbcTemplate.query(sql, (rs, rand) -> {
+            MesajChat mesaj = new MesajChat();
+            mesaj.setId(rs.getInt("id"));
+            mesaj.setMesaj(rs.getString("mesaj"));
+            mesaj.setEste_bot(rs.getBoolean("este_bot"));
+
+            if (rs.getTimestamp("data_trimiterii") != null) {
+                mesaj.setData_trimiterii(rs.getTimestamp("data_trimiterii").toLocalDateTime());
+            }
+
+            return mesaj;
+        }, userId);
+    }
+
+    public int creeazaConversatie(int userId, String titlu) {
+        String sql = "INSERT INTO conversatii (user_id, titlu) VALUES (?, ?) RETURNING id";
+        return jdbcTemplate.queryForObject(sql, Integer.class, userId, titlu);
+    }
+
+    public List<Conversatie> extrageConversatiiUser(int userId) {
+        String sql = "SELECT * FROM conversatii WHERE user_id = ? ORDER BY data_crearii DESC";
+        
+        return jdbcTemplate.query(sql, (rs, rand) -> {
+            Conversatie c = new Conversatie();
+            c.setId(rs.getInt("id"));
+            c.setUser_id(rs.getInt("user_id"));
+            c.setTitlu(rs.getString("titlu"));
+            
+            if (rs.getTimestamp("data_crearii") != null) {
+                c.setData_crearii(rs.getTimestamp("data_crearii").toLocalDateTime());
+            }
+            
+            return c;
+        }, userId);
+    }
+
+    public List<MesajChat> extrageMesajeConversatie(int conversatieId) {
+        String sql = "SELECT * FROM istoric_chat WHERE conversatie_id = ? ORDER BY data_trimiterii ASC";
+        return jdbcTemplate.query(sql, (rs, rand) -> {
+            MesajChat m = new MesajChat();
+            m.setId(rs.getInt("id"));
+            m.setMesaj(rs.getString("mesaj"));
+            m.setEste_bot(rs.getBoolean("este_bot"));
+            if (rs.getTimestamp("data_trimiterii") != null) {
+                m.setData_trimiterii(rs.getTimestamp("data_trimiterii").toLocalDateTime());
+            }
+            return m;
+        }, conversatieId);
     }
 }

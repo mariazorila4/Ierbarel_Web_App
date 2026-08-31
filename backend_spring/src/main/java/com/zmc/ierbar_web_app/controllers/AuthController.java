@@ -19,7 +19,7 @@ import com.zmc.ierbar_web_app.security.JwtUtil;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins={"http://localhost:5173", "http://127.0.0.1:5173"})
+@CrossOrigin(origins={"http://localhost:5173", "http://127.0.0.1:5173", "https://ierbarel.netlify.app"})
 public class AuthController{
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
