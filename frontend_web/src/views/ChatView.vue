@@ -1,28 +1,37 @@
 <template>
   <div class="page-wrapper">
-    <div class="glass-card chat-wrapper">
+    <div class="glass-card chat-wrapper" :class="{ 'sidebar-restrans': esteRestrans }">
       
-      <!-- 📌 SIDEBAR STÂNGA -->
+      <!-- 📌 SIDEBAR STÂNGA RESTRÂNS / EXTINS -->
       <aside class="sidebar">
-        <button @click="conversatieNoua" class="btn-chat-nou">
-          <span class="icon-plus">➕</span> Conversație Nouă
-        </button>
+        <div class="sidebar-header">
+          <button @click="conversatieNoua" class="btn-chat-nou">
+            <span class="icon-plus">➕</span>
+            <span v-if="!esteRestrans">Conversație Nouă</span>
+          </button>
+          
+          <button @click="esteRestrans = !esteRestrans" class="btn-toggle-sidebar" title="Restrânge/Extinde">
+            {{ esteRestrans ? '▶' : '◀' }}
+          </button>
+        </div>
 
-        <div class="sidebar-sectiune">
+        <div class="sidebar-sectiune" v-if="!esteRestrans">
           <div class="sidebar-label">Istoric Conversații</div>
           <div class="lista-sesiuni">
             <div 
-              class="item-sesiune activ"
-              title="Conversația curentă cu Ghiocel"
+              v-for="conv in listaConversatii" 
+              :key="conv.id"
+              :class="['item-sesiune', conv.id === conversatieActivId ? 'activ' : '']"
+              @click="incarcaMesajeConversatie(conv.id)"
             >
               <span class="icon-chat">💬</span>
-              <span class="titlu-sesiune">Sfaturi Botanice Ghiocel</span>
+              <span class="titlu-sesiune">{{ conv.titlu }}</span>
             </div>
           </div>
         </div>
 
         <!-- Buton rapid înapoi în josul sidebar-ului -->
-        <div class="sidebar-footer">
+        <div class="sidebar-footer" v-if="!esteRestrans">
           <button @click="mergiInapoi" class="btn-secundar-sidebar">
             ⬅ Înapoi la Dashboard
           </button>
@@ -97,6 +106,10 @@ const mergiInapoi = () => router.push('/dashboard')
 const zonaChat = ref(null)
 const mesajNou = ref('')
 const arataSugestii = ref(true)
+const esteRestrans = ref(false)
+
+const conversatieActivId = ref(null)
+const listaConversatii = ref([])
 
 const istoricMesaje = ref([
   { rol: 'ghiocel', text: 'Salut! Eu sunt Ghiocel, asistentul tău botanic motorizat de inteligență artificială. Cu ce te pot ajuta astăzi în grădina ta?' }
@@ -118,12 +131,37 @@ const formateazaMarkdown = (text) => {
   return html;
 }
 
-const incarcaIstoricChat = async () => {
+// 1. Încărcarea listei de conversații din backend
+const incarcaConversatii = async () => {
   try {
     const token = localStorage.getItem('jwt_token')
     if (!token) return
 
-    const response = await axios.get('/api/chat/istoric', {
+    const response = await axios.get('/api/chat/conversatii', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+
+    if (Array.isArray(response.data)) {
+      listaConversatii.value = response.data
+      
+      // Selectăm prima conversație dacă există
+      if (listaConversatii.value.length > 0) {
+        incarcaMesajeConversatie(listaConversatii.value[0].id)
+      }
+    }
+  } catch (err) {
+    console.error('Eroare la încărcarea listei de conversații:', err)
+  }
+}
+
+// 2. Încărcarea mesajelor dintr-o conversație specifică
+const incarcaMesajeConversatie = async (conversatieId) => {
+  try {
+    conversatieActivId.value = conversatieId
+    const token = localStorage.getItem('jwt_token')
+    if (!token) return
+
+    const response = await axios.get(`/api/chat/conversatii/${conversatieId}/mesaje`, {
       headers: { Authorization: `Bearer ${token}` }
     })
 
@@ -136,10 +174,11 @@ const incarcaIstoricChat = async () => {
     }
     await scrollLaFinal()
   } catch (err) {
-    console.error('Eroare la încărcarea istoricului de chat:', err)
+    console.error('Eroare la încărcarea mesajelor din conversație:', err)
   }
 }
 
+// 3. Trimitere mesaj (asociază ID-ul conversației curente)
 const trimiteMesaj = async (text) => {
   if (!text.trim()) return
 
@@ -155,15 +194,22 @@ const trimiteMesaj = async (text) => {
     const token = localStorage.getItem('jwt_token')
     if (!token) return
 
-    const raspunsBackend = await axios.post('/api/chat/trimite', { 
+    const response = await axios.post('/api/chat/trimite', { 
+      conversatieId: conversatieActivId.value,
       mesaj: text 
     },
     {
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` }
     })
 
     istoricMesaje.value.pop()
-    istoricMesaje.value.push({ rol: 'ghiocel', text: raspunsBackend.data.mesaj })
+    istoricMesaje.value.push({ rol: 'ghiocel', text: response.data.mesaj })
+
+    // Dacă a fost creată o conversație nouă în backend, actualizăm ID-ul și lista din stânga
+    if (!conversatieActivId.value && response.data.conversatieId) {
+      conversatieActivId.value = response.data.conversatieId
+      incarcaConversatii()
+    }
 
   } catch (eroare) {
     console.error("Eroare la conectarea cu Spring Boot:", eroare)
@@ -175,6 +221,7 @@ const trimiteMesaj = async (text) => {
 }
 
 const conversatieNoua = () => {
+  conversatieActivId.value = null
   istoricMesaje.value = [
     { rol: 'ghiocel', text: 'O nouă conversație a început! Cu ce te pot ajuta?' }
   ]
@@ -191,7 +238,7 @@ const scrollLaFinal = async () => {
 }
 
 onMounted(() => {
-  incarcaIstoricChat()
+  incarcaConversatii()
 })
 </script>
 
@@ -211,6 +258,7 @@ onMounted(() => {
   border: 3px solid var(--verde-deschis);
   box-shadow: 0 10px 30px rgba(0,0,0,0.1);
   overflow: hidden;
+  transition: all 0.3s ease;
 }
 
 /* 🎨 STILURI SIDEBAR STÂNGA */
@@ -223,13 +271,28 @@ onMounted(() => {
   padding: 20px 15px;
   gap: 20px;
   flex-shrink: 0;
+  transition: width 0.3s ease, padding 0.3s ease;
+}
+
+/* Stare sidebar restrâns */
+.chat-wrapper.sidebar-restrans .sidebar {
+  width: 65px;
+  padding: 20px 8px;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .btn-chat-nou {
+  flex: 1;
   background-color: var(--verde-inchis);
   color: white;
   border: none;
-  padding: 12px 15px;
+  padding: 10px;
   border-radius: 12px;
   font-weight: bold;
   cursor: pointer;
@@ -237,12 +300,28 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: background-color 0.2s, transform 0.1s;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: background-color 0.2s;
 }
 
 .btn-chat-nou:hover {
   background-color: var(--verde-deschis);
   color: #333;
+}
+
+.btn-toggle-sidebar {
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 8px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: background-color 0.2s;
+}
+
+.btn-toggle-sidebar:hover {
+  background: #e0e0e0;
 }
 
 .sidebar-sectiune {

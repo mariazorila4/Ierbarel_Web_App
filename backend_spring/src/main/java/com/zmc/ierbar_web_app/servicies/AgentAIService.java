@@ -73,33 +73,30 @@ public class AgentAIService {
         }
     }
 
-    public MesajChat proceseazaConversatia(int userId, String textUtilizator) {
-        salveazaMesajInBazaDeDate(userId, textUtilizator, false);
+    public MesajChat proceseazaConversatia(int userId, int conversatieId, String textUtilizator) {
+        salveazaMesajInBazaDeDate(userId, conversatieId, textUtilizator, false);
 
         String textRaspunsAi;
-
         try {
             textRaspunsAi = apeleazaGeminiApi(textUtilizator);
         } catch (Exception e) {
-            System.err.println("Eroare la comunicarea cu Gemini: " + e.getMessage());
-            textRaspunsAi = "Ne pare rau, Ierbarel a intampinat o eroare de conexiune. Mai incearca o data.";
+            textRaspunsAi = "Ne pare rau, Ierbarel a intampinat o eroare de conexiune.";
         }
 
-        salveazaMesajInBazaDeDate(userId, textRaspunsAi, true);
+        salveazaMesajInBazaDeDate(userId, conversatieId, textRaspunsAi, true);
 
         MesajChat mesajBot = new MesajChat();
         mesajBot.setMesaj(textRaspunsAi);
         mesajBot.setEste_bot(true);
         mesajBot.setData_trimiterii(LocalDateTime.now());
-
         return mesajBot;
     }
 
-    private void salveazaMesajInBazaDeDate(int userId, String mesaj, boolean este_bot) {
-        String sql = "INSERT INTO istoric_chat(user_id, mesaj, este_bot) VALUES (?, ?, ?)";
-        jdbcTemplate.update(sql, userId, mesaj, este_bot);
+    private void salveazaMesajInBazaDeDate(int userId, int conversatieId, String mesaj, boolean este_bot) {
+        String sql = "INSERT INTO istoric_chat(user_id, conversatie_id, mesaj, este_bot) VALUES (?, ?, ?, ?)";
+        jdbcTemplate.update(sql, userId, conversatieId, mesaj, este_bot);
     }
-
+    
     private String apeleazaGeminiApi(String promptUtilizator) throws Exception {
         // Numele corect al modelului Gemini Flash de la Google
         String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=" + apiKey;
