@@ -76,7 +76,7 @@
             <div class="actiuni-captura-modal">
               <button 
                 v-if="!plantaSelectata.este_publica && !plantaSelectata.estePublica" 
-                @click="publicaFotografie(plantaSelectata)" 
+                @click="incepeProcesPublicare(plantaSelectata)" 
                 class="btn-publica-global"
               >
                 🌐 Publică în Galeria Comunității
@@ -100,29 +100,22 @@
             <button class="btn-deschide-galerie" @click="arataPopUpGalerie = true">
               🖼️ Vezi Galeria Foto a Comunității ({{ galerieComunitate.length }} poze)
             </button>
-
-            <!-- Harta Descoperirilor -->
-            <div class="sectiune-habitat-harta">
-              <hr class="separator-modal" />
-              <h4>📍 Locațiile Descoperirilor pe Hartă:</h4>
-              <iframe 
-                v-if="googleMapsUrl"
-                width="100%" 
-                height="260" 
-                frameborder="0" 
-                class="harta-iframe"
-                :src="googleMapsUrl" 
-                allowfullscreen>
-              </iframe>
-              <p v-else class="text-habitat">Nu există încă locații înregistrate pe hartă pentru această specie.</p>
-            </div>
           </div>
 
         </div>
       </div>
     </div>
 
-    <!-- 2. POP-UP DEDICAT GALERIEI FOTO (LIGHTBOX) -->
+    <!-- 2. MODAL HARTĂ PENTRU CONFIRMARE/MODIFICARE LOCAȚIE LA PUBLICARE -->
+    <div v-if="arataHartaPublicare" class="modal-overlay z-top" @click.self="arataHartaPublicare = false">
+      <div class="modal-content-locatie">
+        <button class="btn-inchide" @click="arataHartaPublicare = false">✖</button>
+        <!-- Aici am integrat componenta ta SelectorLocatie care centrează fix ca la Bolt -->
+        <SelectorLocatie @locatie-selectata="confirmaPublicareCuHarta" />
+      </div>
+    </div>
+
+    <!-- 3. POP-UP DEDICAT GALERIEI FOTO -->
     <div v-if="arataPopUpGalerie" class="modal-overlay z-top" @click.self="arataPopUpGalerie = false">
       <div class="popup-galerie-container">
         <button class="btn-inchide-galerie" @click="arataPopUpGalerie = false">✖</button>
@@ -135,7 +128,6 @@
         <div v-else class="lista-fotografii-popup">
           <div v-for="item in galerieComunitate" :key="item.id" class="card-poza-mare">
             <img :src="item.imagineUrl" class="poza-full" alt="Captură comunitate" />
-            
             <div class="badge-autor">
               <span class="autor-name">👤 @{{ item.numeUtilizator || 'Anonim' }}</span>
               <span class="autor-locatie">📍 {{ item.locatie || 'Nespecificată' }}</span>
@@ -149,9 +141,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, inject } from 'vue'
+import { ref, onMounted, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+import SelectorLocatie from '../components/SelectorLocatie.vue'
 
 const notificare = inject('notificare')
 const router = useRouter()
@@ -165,6 +158,9 @@ const galerieComunitate = ref([])
 const locatiiSpecie = ref([])
 const arataPopUpGalerie = ref(false)
 
+const arataHartaPublicare = ref(false)
+const capturaDePublicat = ref(null)
+
 onMounted(async () => {
   await incarcaIerbarulPersonal()
 })
@@ -177,8 +173,8 @@ const incarcaIerbarulPersonal = async () => {
     const config = { headers: { 'Authorization': `Bearer ${token}` } }
 
     const [resUser, resCapturi] = await Promise.allSettled([
-      axios.get(`http://localhost:8080/api/users/general/${userId}`, config),
-      axios.get(`http://localhost:8080/api/plante/ierbar-personal`, config)
+      axios.get(`/api/users/general/${userId}`, config),
+      axios.get(`/api/plante/ierbar-personal`, config)
     ])
 
     const favoriteGlobal = (resUser.status === 'fulfilled' && resUser.value.data.planteFavorite) 
@@ -221,14 +217,14 @@ const deschideDetalii = async (planta) => {
     const config = { headers: { 'Authorization': `Bearer ${token}` } }
 
     try {
-      const resGalerie = await axios.get(`http://localhost:8080/api/plante/${planta.id}/galerie`, config)
+      const resGalerie = await axios.get(`/api/plante/${planta.id}/galerie`, config)
       galerieComunitate.value = resGalerie.data || []
     } catch (err) {
       console.warn("Eroare galerie:", err)
     }
 
     try {
-      const resLocatii = await axios.get(`http://localhost:8080/api/plante/${planta.id}/locatii`, config)
+      const resLocatii = await axios.get(`/api/plante/${planta.id}/locatii`, config)
       locatiiSpecie.value = resLocatii.data || []
     } catch (err) {
       console.warn("Eroare locații:", err)
@@ -244,38 +240,61 @@ const inchideDetalii = () => {
   document.body.style.overflow = 'auto'
 }
 
-// 💡 NOUA FUNCȚIE PENTRU PUBLICARE DIN IERBAR
-const publicaFotografie = async (captura) => {
-  const locatieCurenta = captura.locatie && captura.locatie !== 'Nespecificată' ? captura.locatie : ''
-  
-  // Apelăm componenta ta custom de notificare pe post de Prompt!
-  const locatieEditata = await notificare({
-    titlu: "🌍 Publică în Galerie",
-    mesaj: "Confirmă sau editează locația:\n(Lasă gol dacă vrei să rămână anonimă locația pe hartă. Atenție: locația se va actualiza și pe cardul tău.)",
-    estePrompt: true, // <--- Activăm noul input!
-    valoareDefault: locatieCurenta,
-    placeholder: "ex: Parcul Herăstrău, București"
-  })
+// ==========================================
+// 💡 LOGICA INTELIGENTĂ DE PUBLICARE
+// ==========================================
 
-  // Dacă utilizatorul apasă butonul "Anulează", modalul returnează null
-  if (locatieEditata === null) return
+const incepeProcesPublicare = async (captura) => {
+  capturaDePublicat.value = captura
+  const areLocatieCurenta = captura.locatie && captura.locatie !== 'Nespecificată' && captura.locatie.trim() !== ''
 
-  const locatieFinala = locatieEditata.trim() !== '' ? locatieEditata.trim() : 'Nespecificată'
+  if (areLocatieCurenta) {
+    // 1. Dacă ARE locație -> Întrebăm userul ce vrea să facă
+    const vreaSaPubliceDirect = await notificare({
+      titlu: "Confirmare Locație",
+      mesaj: `Planta are deja setată locația: "${captura.locatie}".\nDorești să o publici așa? (Dacă apeși Anulează, vei putea alege altă locație pe hartă).`,
+      tip: "info",
+      esteConfirmare: true // Returnează true dacă dă "OK", false dacă dă "Anulează"
+    })
+
+    if (vreaSaPubliceDirect) {
+      // 1.a. Apasă OK -> Publică direct fără hartă
+      await executaPublicarea(captura.locatie)
+    } else {
+      // 1.b. Apasă Anulează -> Deschide Harta să modifice
+      arataHartaPublicare.value = true
+    }
+  } else {
+    // 2. Dacă NU ARE locație -> Trimis direct la hartă
+    arataHartaPublicare.value = true
+  }
+}
+
+// Metoda apelată când utilizatorul confirmă locația de pe harta din Modal
+const confirmaPublicareCuHarta = async (dateLocatie) => {
+  arataHartaPublicare.value = false
+  const locatieFinala = dateLocatie.adresa.trim() !== '' ? dateLocatie.adresa.trim() : 'Nespecificată'
+  await executaPublicarea(locatieFinala)
+}
+
+// Metoda finală care comunică cu Backend-ul
+const executaPublicarea = async (adresaFinala) => {
+  if (!capturaDePublicat.value) return
+  const me = capturaDePublicat.value
 
   try {
     const token = localStorage.getItem('jwt_token')
     
-    // Trimitem noua locație către backend
     await axios.put(
-      `http://localhost:8080/api/plante/capturi/${captura.id}/publica`, 
-      { locatie: locatieFinala },
+      `/api/plante/capturi/${me.id}/publica`, 
+      { locatie: adresaFinala },
       { headers: { 'Authorization': `Bearer ${token}` } }
     )
 
-    // Actualizăm starea plantei direct în interfață
-    captura.este_publica = true
-    captura.estePublica = true
-    captura.locatie = locatieFinala // Actualizăm textul locației pe card
+    // Actualizare vizuală în interfață pe loc
+    me.este_publica = true
+    me.estePublica = true
+    me.locatie = adresaFinala
 
     await notificare({
       titlu: "Publicat în Galerie! 🌐",
@@ -289,22 +308,12 @@ const publicaFotografie = async (captura) => {
       mesaj: "Nu am putut face fotografia publică. Încearcă din nou.",
       tip: "error"
     })
+  } finally {
+    capturaDePublicat.value = null
   }
 }
 
-const googleMapsUrl = computed(() => {
-  const locatiiToate = [...locatiiSpecie.value]
-  const locAdmin = plantaSelectata.value?.locatie || plantaSelectata.value?.planta?.locatie
-  if (locAdmin && locAdmin !== 'Nespecificată') {
-    locatiiToate.push(locAdmin)
-  }
-  
-  const unice = [...new Set(locatiiToate)].filter(l => l && l.trim() !== '')
-  if (unice.length === 0) return ''
-
-  const query = unice.join(' | ')
-  return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&output=embed`
-})
+// ==========================================
 
 const formateazaData = (dataStr) => {
   if (!dataStr) return 'Recent'
@@ -328,12 +337,11 @@ const stergePlanta = async (planta) => {
     const config = { headers: { 'Authorization': `Bearer ${token}` } }
 
     if (planta.esteScanata) {
-      await axios.delete(`http://localhost:8080/api/plante/captura/${planta.id}`, config)
+      await axios.delete(`/api/plante/captura/${planta.id}`, config)
     } else {
-      await axios.delete(`http://localhost:8080/api/plante/ierbar-personal/${planta.id}`, config)
+      await axios.delete(`/api/plante/ierbar-personal/${planta.id}`, config)
     }
 
-    // Închidem detaliile automat dacă era deschisă
     if (plantaSelectata.value && plantaSelectata.value.id === planta.id) {
       inchideDetalii()
     }
@@ -376,7 +384,6 @@ const stergePlanta = async (planta) => {
 .btn-stergere { background: #f8d7da; color: #721c24; border: none; padding: 6px 15px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: 0.3s; }
 .btn-stergere:hover { background: #e2aeb3; }
 
-/* MODAL STYLES CU SCROLLBAR IDENTIC CU IERBARUL GLOBAL */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; z-index: 9999; padding: 20px; box-sizing: border-box; }
 .modal-content { background: #ffffff; width: 100%; max-width: 580px; border-radius: 16px; position: relative; display: flex; flex-direction: column; max-height: 85vh; overflow-y: auto; overflow-x: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: popUp 0.3s ease-out forwards; }
 @keyframes popUp { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
@@ -393,11 +400,10 @@ const stergePlanta = async (planta) => {
 .separator-modal { border: none; border-top: 1px solid #eee; margin: 15px 0; }
 .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
-.sectiune-descriere h4, .sectiune-personal-info h4, .sectiune-habitat h4, .sectiune-habitat-harta h4 { margin: 20px 0 10px 0; color: var(--verde-inchis); }
+.sectiune-descriere h4, .sectiune-personal-info h4, .sectiune-habitat h4 { margin: 20px 0 10px 0; color: var(--verde-inchis); }
 .sectiune-personal-info { background: #f4faeb; padding: 12px; border-radius: 10px; border-left: 4px solid var(--verde-deschis); }
 .text-habitat { color: #555; font-size: 0.9rem; font-style: italic; background: #f4faeb; padding: 10px; border-left: 4px solid var(--verde-deschis); }
 
-/* STILURI NOI PENTRU BUTONUL DE PUBLICARE DIN MODAL */
 .actiuni-captura-modal { margin-top: 15px; text-align: center; }
 .btn-publica-global {
   width: 100%;
@@ -443,6 +449,9 @@ const stergePlanta = async (planta) => {
   background: var(--verde-deschis); 
   color: #222; 
 }
+
+/* Modal Harta */
+.modal-content-locatie { background: white; width: 100%; max-width: 550px; border-radius: 20px; padding: 20px; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
 
 /* POP-UP GALERIE FOTO LIGHTBOX */
 .z-top { z-index: 10000 !important; }
@@ -514,6 +523,4 @@ const stergePlanta = async (planta) => {
 }
 .autor-name { font-weight: bold; color: #eef7d2; }
 .autor-locatie { font-size: 0.75rem; color: #ddd; opacity: 0.9; margin-top: 2px; }
-
-.harta-iframe { border: 0; border-radius: 12px; margin-top: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
 </style>
