@@ -55,16 +55,22 @@
 
           <p class="descriere-rezultat">{{ plantaDetectata.descriere || 'Specie identificată automat prin scanare foto.' }}</p>
 
-          <!-- SECTIUNEA DE SALVARE ÎN IERBAR (CU LOCAȚIE) -->
+          <!-- SECTIUNEA DE SALVARE ÎN IERBAR (CU LOCAȚIE PE HARTĂ) -->
           <div v-if="!esteSalvataInIerbar" class="grup-salvare">
             <label for="input-locatie" class="label-locatie">📍 Locația unde ai găsit planta (opțional):</label>
-            <input 
-              id="input-locatie"
-              v-model="locatieGasita" 
-              type="text" 
-              placeholder="ex: Parcul Herăstrău, București" 
-              class="input-text"
-            />
+            
+            <div class="rand-locatie-harta">
+              <input 
+                id="input-locatie"
+                v-model="locatieGasita" 
+                type="text" 
+                placeholder="ex: Parcul Herăstrău, București" 
+                class="input-text"
+              />
+              <button type="button" @click="arataHartaModal = true" class="btn-deschide-harta" title="Alege pe hartă stil Bolt">
+                🗺️ Harta
+              </button>
+            </div>
             
             <button @click="salveazaInIerbar" class="btn-salveaza" :disabled="seSalveaza">
               {{ seSalveaza ? 'Se salvează... ⏳' : '❤️ Salvează în Ierbarul Personal' }}
@@ -79,6 +85,15 @@
         </div>
       </div>
     </div>
+
+    <!-- MODAL HARTĂ POP-UP STIL BOLT -->
+    <div v-if="arataHartaModal" class="modal-overlay z-top" @click.self="arataHartaModal = false">
+      <div class="modal-content-locatie">
+        <button class="btn-inchide" @click="arataHartaModal = false">✖</button>
+        <SelectorLocatie @locatie-selectata="preiaLocatieDinHarta" />
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -86,6 +101,7 @@
 import { ref, onMounted, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+import SelectorLocatie from '../components/SelectorLocatie.vue'
 
 const notificareInjectat = inject('notificare', null)
 const router = useRouter()
@@ -102,6 +118,7 @@ const plantaDetectata = ref(null)
 const esteSalvataInIerbar = ref(false)
 const locatieGasita = ref('')
 const seSalveaza = ref(false)
+const arataHartaModal = ref(false)
 
 const mergiInapoi = () => router.push('/dashboard')
 
@@ -117,6 +134,11 @@ onMounted(() => {
   const agent = navigator.userAgent || navigator.vendor || window.opera
   esteDesktop.value = !/android|ipad|iphone|ipod/i.test(agent)
 })
+
+const preiaLocatieDinHarta = (dateLocatie) => {
+  locatieGasita.value = dateLocatie.adresa
+  arataHartaModal.value = false
+}
 
 const deschideCamera = () => inputCamera.value?.click()
 const deschideGalerie = () => inputGalerie.value?.click()
@@ -180,7 +202,6 @@ const trimiteSpreAnaliza = async () => {
   }
 }
 
-// SALVARE STRICT ÎN IERBAR PERSONAL
 const salveazaInIerbar = async () => {
   if (!plantaDetectata.value) return
 
@@ -267,10 +288,13 @@ const salveazaInIerbar = async () => {
 .badge-familie { display: inline-block; font-size: 0.8rem; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 10px; margin-top: 4px; font-weight: bold; }
 .descriere-rezultat { color: #444; line-height: 1.5; margin: 15px 0; font-size: 0.95rem; }
 
-/* Grup Salvare Nou */
+/* Grup Salvare + Harta */
 .grup-salvare { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; border-top: 1px dashed #ccc; padding-top: 15px; }
 .label-locatie { font-size: 0.9rem; color: #555; font-weight: 500; }
-.input-text { padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 0.95rem; width: 100%; box-sizing: border-box; }
+.rand-locatie-harta { display: flex; gap: 10px; }
+.input-text { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 0.95rem; box-sizing: border-box; }
+.btn-deschide-harta { background: white; border: 2px solid var(--verde-inchis); color: var(--verde-inchis); border-radius: 8px; padding: 0 15px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; }
+.btn-deschide-harta:hover { background: var(--verde-inchis); color: white; }
 
 .btn-salveaza { background: #ffebeb; color: #e74c3c; border: 1px solid #ffb3b3; padding: 12px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; transition: 0.3s; width: 100%; }
 .btn-salveaza:hover:not(:disabled) { background: #e74c3c; color: white; }
@@ -278,4 +302,10 @@ const salveazaInIerbar = async () => {
 .sectiune-publicare { margin-top: 20px; border-top: 1px dashed #ccc; padding-top: 15px; text-align: center; }
 .text-succes-salvare { color: #27ae60; font-weight: bold; margin-bottom: 5px; font-size: 1.05rem; }
 .text-info-secundar { color: #666; font-size: 0.85rem; }
+
+/* Modal Harta */
+.z-top { z-index: 10000 !important; }
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
+.modal-content-locatie { background: white; width: 100%; max-width: 550px; border-radius: 20px; padding: 20px; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
+.btn-inchide { position: absolute; top: 15px; right: 15px; background: rgba(0,0,0,0.1); border: none; border-radius: 50%; width: 32px; height: 32px; font-size: 1.1rem; cursor: pointer; z-index: 20; }
 </style>

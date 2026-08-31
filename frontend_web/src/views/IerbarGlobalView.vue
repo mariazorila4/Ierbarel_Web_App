@@ -90,14 +90,14 @@
             <p>{{ plantaSelectata.descriere }}</p>
           </div>
 
-          <!-- HABITAT NATURAL (PUS DE ADMIN) -->
+          <!-- HABITAT NATURAL -->
           <div v-if="plantaSelectata.locatie && plantaSelectata.locatie !== 'Nespecificată'" class="sectiune-habitat">
             <hr class="separator-modal" />
             <h4>🌍 Habitat Natural:</h4>
             <p class="text-habitat">{{ plantaSelectata.locatie }}</p>
           </div>
 
-          <!-- ICON/BUTON PENTRU DESCHIDEREA GALERIEI -->
+          <!-- GALERIE COMUNITATE -->
           <div class="sectiune-galerie-buton">
             <hr class="separator-modal" />
             <button class="btn-deschide-galerie" @click="arataPopUpGalerie = true">
@@ -105,28 +105,20 @@
             </button>
           </div>
 
-          <!-- HARTA CUMULATIVĂ A COMUNITĂȚII -->
+          <!-- 🍃 HARTA INTERACTIVĂ CU MARKERE ÎN FORMĂ DE FRUNZĂ ȘI AUTO-ZOOM -->
           <div class="sectiune-habitat-harta">
             <hr class="separator-modal" />
             <h4>📍 Locațiile Descoperirilor pe Hartă:</h4>
             
-            <iframe 
-              v-if="googleMapsUrl"
-              width="100%" 
-              height="260" 
-              frameborder="0" 
-              class="harta-iframe"
-              :src="googleMapsUrl" 
-              allowfullscreen>
-            </iframe>
-            <p v-else class="text-habitat">Nu există încă locații înregistrate pe hartă pentru această specie.</p>
+            <div v-show="existaLocatii" ref="mapContainer" class="harta-container"></div>
+            <p v-if="!existaLocatii" class="text-habitat">Nu există încă locații înregistrate pe hartă pentru această specie.</p>
           </div>
 
         </div>
       </div>
     </div>
 
-    <!-- POP-UP DEDICAT GALERIEI FOTO (LIGHTBOX) -->
+    <!-- POP-UP DEDICAT GALERIEI FOTO -->
     <div v-if="arataPopUpGalerie" class="modal-overlay z-top" @click.self="arataPopUpGalerie = false">
       <div class="popup-galerie-container">
         <button class="btn-inchide-galerie" @click="arataPopUpGalerie = false">✖</button>
@@ -139,8 +131,6 @@
         <div v-else class="lista-fotografii-popup">
           <div v-for="item in galerieComunitate" :key="item.id" class="card-poza-mare">
             <img :src="item.imagineUrl" class="poza-full" alt="Captură comunitate" />
-            
-            <!-- BADGE SUPRAPUS ÎN COLȚUL DIN DREAPTA SUS -->
             <div class="badge-autor">
               <span class="autor-name">👤 @{{ item.numeUtilizator || 'Anonim' }}</span>
               <span class="autor-locatie">📍 {{ item.locatie || 'Nespecificată' }}</span>
@@ -154,7 +144,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, inject } from 'vue'
+import { ref, computed, onMounted, inject, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 
@@ -171,6 +161,17 @@ const galerieComunitate = ref([])
 const locatiiSpecie = ref([])
 const arataPopUpGalerie = ref(false)
 
+const mapContainer = ref(null)
+let mapInstance = null
+
+const existaLocatii = computed(() => {
+  const locatiiToate = [...locatiiSpecie.value]
+  if (plantaSelectata.value?.locatie && plantaSelectata.value.locatie !== 'Nespecificată') {
+    locatiiToate.push(plantaSelectata.value.locatie)
+  }
+  return [...new Set(locatiiToate)].filter(l => l && l.trim() !== '').length > 0
+})
+
 const deschideDetalii = async (planta) => {
   plantaSelectata.value = planta
   document.body.style.overflow = 'hidden'
@@ -182,20 +183,20 @@ const deschideDetalii = async (planta) => {
   const config = { headers: { 'Authorization': `Bearer ${token}` } }
 
   try {
-    const resGalerie = await axios.get(`http://localhost:8080/api/plante/${planta.id}/galerie`, config)
+    const resGalerie = await axios.get(`/api/plante/${planta.id}/galerie`, config)
     galerieComunitate.value = resGalerie.data || []
   } catch (err) {
     console.warn("Nu s-a putut încărca galeria:", err)
-    galerieComunitate.value = []
   }
 
   try {
-    const resLocatii = await axios.get(`http://localhost:8080/api/plante/${planta.id}/locatii`, config)
+    const resLocatii = await axios.get(`/api/plante/${planta.id}/locatii`, config)
     locatiiSpecie.value = resLocatii.data || []
   } catch (err) {
     console.warn("Nu s-au putut încărca locațiile:", err)
-    locatiiSpecie.value = []
   }
+
+  await initHarta()
 }
 
 const inchideDetalii = () => {
@@ -203,26 +204,124 @@ const inchideDetalii = () => {
   arataPopUpGalerie.value = false
   galerieComunitate.value = []
   locatiiSpecie.value = []
+  if (mapInstance) {
+    mapInstance.remove()
+    mapInstance = null
+  }
   document.body.style.overflow = 'auto'
 }
 
-const googleMapsUrl = computed(() => {
+// 🍃 GESTIONARE HARTĂ LEAFLET CU CĂUTARE ÎN 4 PAȘI (PENTRU ADRESE DETALIATE/CLĂDIRI)
+const initHarta = async () => {
+  await nextTick()
+  if (!mapContainer.value || !existaLocatii.value) return
+
+  if (!window.L) {
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+    document.head.appendChild(link)
+
+    await new Promise((resolve) => {
+      const script = document.createElement('script')
+      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+      script.onload = resolve
+      document.head.appendChild(script)
+    })
+  }
+
+  if (mapInstance) {
+    mapInstance.remove()
+  }
+
+  const L = window.L
+  mapInstance = L.map(mapContainer.value)
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+  }).addTo(mapInstance)
+
+  const leafIcon = L.divIcon({
+    className: 'custom-leaf-marker',
+    html: '<div class="leaf-pin">🍃</div>',
+    iconSize: [40, 40],
+    iconAnchor: [20, 35]
+  })
+
   const locatiiToate = [...locatiiSpecie.value]
   if (plantaSelectata.value?.locatie && plantaSelectata.value.locatie !== 'Nespecificată') {
     locatiiToate.push(plantaSelectata.value.locatie)
   }
-  
   const unice = [...new Set(locatiiToate)].filter(l => l && l.trim() !== '')
-  if (unice.length === 0) return ''
-  
-  const query = unice.join(' | ')
-  return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&output=embed`
-})
+
+  const bounds = L.latLngBounds()
+  let markerAdaugat = false
+
+  for (const loc of unice) {
+    try {
+      let data = []
+      
+      // PASUL 1: Căutare exactă în limba română
+      let res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(loc)}&accept-language=ro`)
+      data = await res.json()
+
+      // PASUL 2: Fallback fără prescurtarea "Nr."
+      if (!data || data.length === 0) {
+        const locFaraNr = loc.replace(/nr\.?\s*/gi, '')
+        res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locFaraNr)}&accept-language=ro`)
+        data = await res.json()
+      }
+
+      // PASUL 3: Fallback - Clădire/POI + Oraș (ex: Opera Națională, București)
+      if ((!data || data.length === 0) && loc.includes(',')) {
+        const parti = loc.split(',').map(p => p.trim())
+        if (parti.length >= 3) {
+          const locPOI = `${parti[0]}, ${parti[parti.length - 1]}`
+          res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locPOI)}&accept-language=ro`)
+          data = await res.json()
+        }
+      }
+
+      // PASUL 4: Fallback - Stradă + Oraș
+      if ((!data || data.length === 0) && loc.includes(',')) {
+        const parti = loc.split(',').map(p => p.trim())
+        const locSimplificat = parti.slice(-2).join(', ')
+        res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locSimplificat)}&accept-language=ro`)
+        data = await res.json()
+      }
+
+      if (data && data.length > 0) {
+        const lat = parseFloat(data[0].lat)
+        const lon = parseFloat(data[0].lon)
+        
+        L.marker([lat, lon], { icon: leafIcon })
+          .addTo(mapInstance)
+          .bindPopup(`<b>${plantaSelectata.value.nume_uzual}</b><br>📍 ${loc}`)
+        
+        bounds.extend([lat, lon])
+        markerAdaugat = true
+      } else {
+        console.warn("Nu s-a putut geocoda locația pe hartă:", loc)
+      }
+    } catch (e) {
+      console.warn("Eroare la rețea pentru geocodarea locației:", loc)
+    }
+  }
+
+  if (markerAdaugat) {
+    mapInstance.fitBounds(bounds, {
+      padding: [40, 40],
+      maxZoom: 14
+    })
+  } else {
+    mapInstance.setView([45.9432, 24.9668], 6)
+  }
+}
 
 onMounted(async () => {
   try {
     const token = localStorage.getItem('jwt_token')
-    const raspuns = await axios.get('http://localhost:8080/api/plante', {
+    const raspuns = await axios.get('/api/plante', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     bazaDeDateGlobala.value = raspuns.data
@@ -236,7 +335,7 @@ onMounted(async () => {
 const adaugaLaFavorite = async (planta) => {
   try {
     const token = localStorage.getItem('jwt_token')
-    const raspuns = await axios.post(`http://localhost:8080/api/plante/ierbar-personal/${planta.id}`, {}, {
+    const raspuns = await axios.post(`/api/plante/ierbar-personal/${planta.id}`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     
@@ -364,6 +463,28 @@ const planteFiltrate = computed(() => {
   color: #222; 
 }
 
+/* 🍃 STILURI CONTAINER HARTĂ & MARKER FRUNZĂ */
+.harta-container {
+  width: 100%;
+  height: 280px;
+  border-radius: 12px;
+  margin-top: 10px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+  z-index: 1;
+}
+
+:deep(.leaf-pin) {
+  font-size: 2.2rem;
+  filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+  animation: leafBounce 2s infinite ease-in-out;
+  cursor: pointer;
+}
+
+@keyframes leafBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+
 .z-top { z-index: 10000 !important; }
 .popup-galerie-container { 
   background: #181818; 
@@ -433,8 +554,6 @@ const planteFiltrate = computed(() => {
 }
 .autor-name { font-weight: bold; color: #eef7d2; }
 .autor-locatie { font-size: 0.75rem; color: #ddd; opacity: 0.9; margin-top: 2px; }
-
-.harta-iframe { border: 0; border-radius: 12px; margin-top: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
 
 @media (max-width: 500px) { .info-grid { grid-template-columns: 1fr; } .header-imagine { height: 220px; } }
 </style>
