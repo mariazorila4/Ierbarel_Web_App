@@ -33,16 +33,28 @@ public class AgentAIService {
     @Value("${gemini.api.key}")
     private String apiKey;
 
+    @Value("${plantnet.api.key:}")
+    private String plantnetApiKey;
+
     public AgentAIService(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
         this.jdbcTemplate = jdbcTemplate;
         this.restTemplate = new RestTemplate();
         this.objectMapper = objectMapper;
     }
 
+    // Metodă pentru compatibilitate cu PlantaService
     public String detecteazaPlantaYOLO(MultipartFile file) {
-        String urlPython = "http://localhost:5000/predict";
+        Map<String, String> rezultat = scaneazaPlantaCuPlantNet(file);
+        return rezultat.getOrDefault("denumire_stiintifica", "Necunoscuta");
+    }
 
+    // ==============================================================
+    // 🌿 IDENTIFICARE VIZUALĂ CU PL@NTNET API
+    // ==============================================================
+    public Map<String, String> scaneazaPlantaCuPlantNet(MultipartFile file) {
         try {
+            String url = "https://my-api.plantnet.org/v2/identify/all?api-key=" + plantnetApiKey;
+
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
@@ -54,22 +66,36 @@ public class AgentAIService {
             };
 
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-            body.add("file", fileResource);
+            body.add("images", fileResource);
+            body.add("organs", "auto");
 
             HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
 
-            ResponseEntity<String> response = restTemplate.postForEntity(urlPython, requestEntity, String.class);
+            ResponseEntity<String> response = restTemplate.postForEntity(url, requestEntity, String.class);
             JsonNode root = objectMapper.readTree(response.getBody());
 
-            String clasa = root.path("clasa").asText();
-            if (clasa == null || clasa.isBlank()) {
-                return "Necunoscuta";
+            JsonNode results = root.path("results");
+            if (results.isArray() && results.size() > 0) {
+                JsonNode topResult = results.get(0);
+                String denumireStiintifica = topResult.path("species").path("scientificNameWithoutAuthor").asText();
+                double scorIncredere = topResult.path("score").asDouble() * 100;
+
+                System.out.println("🌿 Pl@ntNet a identificat specia: " + denumireStiintifica + " (" + String.format("%.1f", scorIncredere) + "%)");
+
+                return genereazaDetaliiBotanice(denumireStiintifica);
+            } else {
+                throw new RuntimeException("Specia nu a putut fi identificată.");
             }
-            return clasa;
 
         } catch (Exception e) {
-            System.err.println("Eroare la apelul Python YOLO: " + e.getMessage());
-            return "Necunoscuta";
+            System.err.println("❌ Eroare Pl@ntNet API: " + e.getMessage());
+            return Map.of(
+                "nume_uzual", "Plantă Necunoscută",
+                "denumire_stiintifica", "Specie neidentificată",
+                "descriere", "Nu am putut identifica cu precizie planta. Asigură-te că imaginea este clară și conține o floare sau frunză în prim-plan.",
+                "categorie_planta", "FLOARE",
+                "tip_planta", "ORNAMENTALA"
+            );
         }
     }
 
@@ -80,7 +106,7 @@ public class AgentAIService {
         try {
             textRaspunsAi = apeleazaGeminiApi(textUtilizator);
         } catch (Exception e) {
-            textRaspunsAi = "Ne pare rau, Ierbarel a intampinat o eroare de conexiune.";
+            textRaspunsAi = "Ne pare rău, Ghiocel a întâmpinat o eroare de conexiune.";
         }
 
         salveazaMesajInBazaDeDate(userId, conversatieId, textRaspunsAi, true);
@@ -98,7 +124,6 @@ public class AgentAIService {
     }
     
     private String apeleazaGeminiApi(String promptUtilizator) throws Exception {
-        // Numele corect al modelului Gemini Flash de la Google
         String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=" + apiKey;
 
         String promptComplet = "Esti Ghiocel, un asistent virtual botanist, prietenos, cute si educativ. Nu trebuie sa te prezinti la fiecare inceput de conversatie." +
@@ -122,26 +147,24 @@ public class AgentAIService {
 
     public Map<String, String> genereazaDetaliiBotanice(String numeSpecie) {
         try {
-            String prompt = "Ești un expert botanist. Generează fișa tehnică detaliată pentru planta cu numele: '" + numeSpecie + "'. " +
-                    "Răspunde STRICT sub formă de JSON cu următoarele chei și folosește limba română: " +
+            String prompt = "Ești un expert botanist. Generează fișa tehnică detaliată pentru planta cu denumirea: '" + numeSpecie + "'. " +
+                    "Răspunde STRICT sub formă de JSON cu următoarele chei și folosește exclusiv limba română: " +
                     "\"nume_uzual\", \"denumire_stiintifica\", \"familie\", \"descriere\" (maxim 2 fraze captivante), " +
-                    "\"categorie_planta\" (alege strict una din: FLOARE, ARBORE, ARBUST, IARBA, FERIGA, MUSCHI, ALTA), " +
+                    "\"categorie_planta\" (alege strict una din: FLOARE, ARBORE, ARBUST, IERBURI, FERIGA, MUSCHI, ALTA), " +
                     "\"tip_planta\" (alege strict una din: ORNAMENTALA, MEDICINALA, AROMATICA, TOXICA, FRUCTIFERA, CARNIVORA, ALTA), " +
                     "\"inaltime_maxima\" (doar cifre, ex: 0.5), \"perioada_inflorire\", \"ciclu_de_viata\" (PEREN, ANUAL, BIENAL), " +
                     "\"numar_petale\" (cifra, pune 0 daca nu are), \"culoare\", \"tip_coroana\", \"tip_frunza\", \"tip_tulpina\", " +
                     "\"pom_fructifer\" (true/false), \"produce_fructe\" (true/false), \"poate_fi_uscata\" (true/false). " +
-                    "NU adăuga formatare markdown (```json).";
+                    "NU adăuga absolut deloc formatare markdown sau block-uri de cod (```json).";
 
             String descriereGenerata = apeleazaGeminiApi(prompt);
 
             String jsonResult = descriereGenerata.replaceAll("(?s)```json\\n?(.*?)\\n?```", "$1").trim();
             jsonResult = jsonResult.replaceAll("(?s)```\\n?(.*?)\\n?```", "$1").trim();
 
-            // 💡 REZOLVAREA: Citim totul ca Object (suportă numere, booleeni și texte)
             @SuppressWarnings("unchecked")
             Map<String, Object> rawMap = objectMapper.readValue(jsonResult, Map.class);
 
-            // Apoi trecem prin ele și le transformăm curat și sigur în String-uri
             Map<String, String> finalMap = new HashMap<>();
             for (Map.Entry<String, Object> entry : rawMap.entrySet()) {
                 finalMap.put(entry.getKey(), String.valueOf(entry.getValue()));
