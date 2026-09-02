@@ -30,8 +30,8 @@ import com.zmc.ierbar_web_app.models.simple_factory.TipPlanta;
 import com.zmc.ierbar_web_app.models.user.General;
 import com.zmc.ierbar_web_app.repositories.PlantaRepository;
 import com.zmc.ierbar_web_app.repositories.UserRepository;
+import com.zmc.ierbar_web_app.servicies.AgentAIService;
 import com.zmc.ierbar_web_app.servicies.CuriozitateSchedulerService;
-import com.zmc.ierbar_web_app.servicies.PlantaService;
 
 @RestController
 @RequestMapping("/api/plante")
@@ -39,12 +39,12 @@ import com.zmc.ierbar_web_app.servicies.PlantaService;
 public class PlantaController {
     private final PlantaRepository plantaRepository;
     private final UserRepository userRepository;
-    private final PlantaService plantaService;
+    private final AgentAIService agentAIService;
 
-    public PlantaController(PlantaRepository plantaRepository, UserRepository userRepository, PlantaService plantaService) {
+    public PlantaController(PlantaRepository plantaRepository, UserRepository userRepository, AgentAIService agentAIService) {
         this.plantaRepository = plantaRepository;
         this.userRepository = userRepository;
-        this.plantaService = plantaService;
+        this.agentAIService = agentAIService;
     }
 
     @GetMapping
@@ -121,14 +121,12 @@ public class PlantaController {
     // 🌿 ADMIN, SCANARE & SALVARE
     // ==========================================
 
-    // Helper local pentru normalizare nume (ignoră diacritice, spații, litere mari/mici)
     private String normalizeazaText(String text) {
         if (text == null) return "";
         String nfdNormalized = java.text.Normalizer.normalize(text.toLowerCase().trim(), java.text.Normalizer.Form.NFD);
         return nfdNormalized.replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
     }
 
-    // 1. PASUL 1: SALVARE STRICT ÎN IERBARUL PERSONAL (PRIVAT)
     @PostMapping("/salveaza-scanare")
     public ResponseEntity<?> salveazaScanarePersonala(@RequestBody Map<String, Object> payload, Principal principal) {
         try {
@@ -137,7 +135,6 @@ public class PlantaController {
 
             int userId = user.getId();
             
-            // EXTRAGERE DATE DE BAZĂ
             String numeUzual = payload.getOrDefault("nume_uzual", "Plantă Scanată").toString().trim();
             String denumireStiintifica = payload.getOrDefault("denumire_stiintifica", "Specie Botanică").toString().trim();
             String descriere = payload.getOrDefault("descriere", "Identificată prin scanare foto.").toString();
@@ -145,7 +142,6 @@ public class PlantaController {
             String imagineUrl = payload.get("imagine_url") != null ? payload.get("imagine_url").toString() : "";
             String locatie = payload.getOrDefault("locatie", "Nespecificată").toString().trim();
 
-            // EXTRAGERE DATE AVANSATE (DINAMICE DE LA AI)
             String categorieStr = payload.getOrDefault("categorie_planta", "FLOARE").toString().toUpperCase();
             CategoriePlanta categoriePlanta;
             try { categoriePlanta = CategoriePlanta.valueOf(categorieStr); } 
@@ -178,7 +174,6 @@ public class PlantaController {
 
             String numeNorm = normalizeazaText(numeUzual);
 
-            // Căutăm dacă specia există deja
             List<Planta> plante = plantaRepository.extrageToatePlantele();
             Optional<Planta> potrivire = plante.stream()
                     .filter(p -> normalizeazaText(p.getNume_uzual()).equals(numeNorm))
@@ -189,7 +184,6 @@ public class PlantaController {
             if (potrivire.isPresent()) {
                 targetPlantaId = potrivire.get().getId();
             } else {
-                // DACĂ E SPECIE NOUĂ, FOLOSIM VARIABILELE DINAMICE, NU HARDCODĂRI!
                 PlantaFactory factory = new PlantaFactory();
                 Planta nouaPlanta = factory.creazaPlanta(
                         categoriePlanta, userId, numeUzual, denumireStiintifica,
@@ -204,7 +198,6 @@ public class PlantaController {
                 targetPlantaId = plantaRepository.extrageUltimulIdPlanta();
             }
 
-            // Salvare în capturi (Ierbar Personal)
             plantaRepository.adaugaCapturaInGalerie(targetPlantaId, userId, imagineUrl, locatie, false);
 
             List<CapturaPlanta> capturi = plantaRepository.extrageIerbarPersonalUser(userId);
@@ -230,10 +223,7 @@ public class PlantaController {
             General user = obtineUtilizatorDinPrincipal(principal);
             if (user == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 
-            // Extragem locația editată pe care a validat-o utilizatorul în prompt
             String locatie = payload.getOrDefault("locatie", "Nespecificată").toString();
-
-            // Trimitem locația mai departe în repository
             plantaRepository.marcheazaCapturaPublica(capturaId, user.getId(), locatie);
 
             return ResponseEntity.ok(Map.of("mesaj", "Fotografia a devenit publică!"));
@@ -351,22 +341,25 @@ public class PlantaController {
         }
     }
 
+    // ==========================================
+    // 📷 SCANARE VIZUALĂ DIRECTĂ (PlantNet + Gemini)
+    // ==========================================
     @PostMapping(value = "/scaneaza", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<?> scaneazaImagineYOLO(@RequestParam("file") MultipartFile file,
-                                                @RequestParam(value = "user_id", defaultValue = "1") int userId) {
+    public ResponseEntity<?> scaneazaImaginePlanta(@RequestParam("file") MultipartFile file) {
         try {
             if (file == null || file.isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("eroare", "Fișierul încărcat este gol."));
             }
 
-            // Apelăm noua metodă redenumită și curățată
-            Planta plantaRecunoscuta = plantaService.recunoastePlanta(file, userId);
-            return ResponseEntity.ok(plantaRecunoscuta);
+            // Aici apelăm metoda hibridă din AgentAIService
+            Map<String, String> detaliiPlanta = agentAIService.scaneazaPlantaCuPlantNet(file);
+            
+            return ResponseEntity.ok(detaliiPlanta);
 
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("eroare", "Eroare la procesarea YOLO: " + e.getMessage()));
+                    .body(Map.of("eroare", "Eroare la identificarea vizuală: " + e.getMessage()));
         }
     }
 
@@ -410,14 +403,11 @@ public class PlantaController {
             List<CuriozitatePlanta> curiozitati = plantaRepository.extrageIstoricCuriozitati();
             java.time.LocalDate azi = java.time.LocalDate.now();
 
-            // Verificăm dacă există cel puțin o curiozitate generată AȘADAR PENTRU ZIUA DE AZI
             boolean areCuriozitateAzi = curiozitati.stream()
                     .anyMatch(c -> c.getDataGenerare() != null && c.getDataGenerare().equals(azi));
 
-            // Dacă nu avem nicio curiozitate pentru azi, o generăm automat pe loc!
             if (!areCuriozitateAzi) {
                 curiozitateSchedulerService.genereazaSiSalveazaCuriozitate();
-                // Reîncărcăm lista actualizată
                 curiozitati = plantaRepository.extrageIstoricCuriozitati();
             }
 
