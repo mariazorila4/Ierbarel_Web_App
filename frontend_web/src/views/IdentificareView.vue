@@ -32,13 +32,13 @@
           </div>
         </div>
 
-        <div v-else class="previzualizare">
+        <div v-else-if="!esteSalvataInIerbar" class="previzualizare">
           <p>Imagine selectată:</p>
           <img :src="previewUrl" alt="Previzualizare" class="poza-mica" />
           <button @click="schimbaPoza" class="btn-schimba">✖ Schimbă Poza</button>
         </div>
 
-        <button @click="trimiteSpreAnaliza" class="btn-mare btn-verde" :disabled="!imagineSelectata || seProceseaza">
+        <button v-if="!esteSalvataInIerbar" @click="trimiteSpreAnaliza" class="btn-mare btn-verde" :disabled="!imagineSelectata || seProceseaza">
           {{ seProceseaza ? 'Analizăm imaginea... ⏳' : 'Analizează Planta' }}
         </button>
 
@@ -80,10 +80,15 @@
             </button>
           </div>
 
-          <!-- MESAJ SUCCES DUPĂ SALVARE -->
+          <!-- MESAJ SUCCES DUPĂ SALVARE + DUA BUTOANE DE ACȚIUNE -->
           <div v-else class="sectiune-publicare">
             <p class="text-succes-salvare">✅ Planta a fost salvată în Ierbarul tău Personal!</p>
             <p class="text-info-secundar">Dacă dorești să o faci publică, mergi în Ierbarul Personal și apasă "Publică în Galerie".</p>
+            
+            <div class="grup-butoane-post-salvare">
+              <button @click="schimbaPoza" class="btn-alta-scanare">📸 Scanează altă plantă</button>
+              <button @click="router.push('/ierbar')" class="btn-vezi-ierbar">📚 Vezi Ierbarul Meu</button>
+            </div>
           </div>
         </div>
       </div>
@@ -163,7 +168,6 @@ const prelucreazaFisier = (fisier) => {
     esteSalvataInIerbar.value = false
     locatieGasita.value = ''
 
-    // În loc de blob:, folosim FileReader pentru a genera Base64
     const reader = new FileReader()
     reader.onload = (e) => {
       previewUrl.value = e.target.result
@@ -178,6 +182,8 @@ const schimbaPoza = () => {
   plantaDetectata.value = null
   esteSalvataInIerbar.value = false
   locatieGasita.value = ''
+  if (inputGalerie.value) inputGalerie.value.value = ''
+  if (inputCamera.value) inputCamera.value.value = ''
 }
 
 const trimiteSpreAnaliza = async () => {
@@ -315,7 +321,14 @@ const salveazaInIerbar = async () => {
 
 .sectiune-publicare { margin-top: 20px; border-top: 1px dashed #ccc; padding-top: 15px; text-align: center; }
 .text-succes-salvare { color: #27ae60; font-weight: bold; margin-bottom: 5px; font-size: 1.05rem; }
-.text-info-secundar { color: #666; font-size: 0.85rem; }
+.text-info-secundar { color: #666; font-size: 0.85rem; margin-bottom: 15px; }
+
+/* Acțiuni post-salvare */
+.grup-butoane-post-salvare { display: flex; gap: 10px; margin-top: 15px; }
+.btn-alta-scanare { flex: 1; background: white; border: 2px solid var(--verde-inchis); color: var(--verde-inchis); padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+.btn-alta-scanare:hover { background: #f0fdf4; }
+.btn-vezi-ierbar { flex: 1; background: var(--verde-inchis); border: none; color: white; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+.btn-vezi-ierbar:hover { background: var(--verde-deschis); color: #333; }
 
 /* Modal Harta */
 .z-top { z-index: 10000 !important; }
