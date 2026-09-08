@@ -13,10 +13,10 @@ public class Ierburi extends Planta implements PreparabilPentruUscare {
         super();
     }
 
-    public Ierburi(int id, String nume_uzual, String denumire_stiintifica, String familie, String descriere,
+    public Ierburi(int id, String nume_uzual, String denumire_stiintifica, String familie, String descriere, String habitat,
         float inaltime_maxima, String perioada_inflorire, boolean poate_fi_uscata, String ciclu_de_viata,
         TipPlanta tip_planta, String locatie, String imagine_url, CategoriePlanta categorie_planta, String tip_tulpina) {
-        super(id, nume_uzual, denumire_stiintifica, familie, descriere, inaltime_maxima,
+        super(id, nume_uzual, denumire_stiintifica, familie, descriere, habitat, inaltime_maxima,
             perioada_inflorire, poate_fi_uscata, ciclu_de_viata, tip_planta, locatie, imagine_url, categorie_planta);
         this.tip_tulpina = tip_tulpina;
     }

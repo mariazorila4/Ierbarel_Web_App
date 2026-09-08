@@ -23,6 +23,9 @@ public abstract class Planta{
     @Column("descriere")
     protected String descriere;
 
+    @Column("habitat")
+    protected String habitat;
+
     @Column("inaltime_maxima")
     protected float inaltime_maxima;
 
@@ -50,12 +53,13 @@ public abstract class Planta{
     public Planta() {
     }
 
-    public Planta(int id, String nume_uzual, String denumire_stiintifica, String familie, String descriere, float inaltime_maxima, String perioada_inflorire, boolean poate_fi_uscata, String ciclu_de_viata, TipPlanta tip_planta, String locatie, String imagine_url, CategoriePlanta categorie_planta) {
+    public Planta(int id, String nume_uzual, String denumire_stiintifica, String familie, String descriere, String habitat, float inaltime_maxima, String perioada_inflorire, boolean poate_fi_uscata, String ciclu_de_viata, TipPlanta tip_planta, String locatie, String imagine_url, CategoriePlanta categorie_planta) {
         this.id = id;
         this.nume_uzual = nume_uzual;
         this.denumire_stiintifica = denumire_stiintifica;
         this.familie = familie;
         this.descriere = descriere;
+        this.habitat = habitat;
         this.inaltime_maxima = inaltime_maxima;
         this.perioada_inflorire = perioada_inflorire;
         this.poate_fi_uscata = poate_fi_uscata;
@@ -189,5 +193,12 @@ public abstract class Planta{
         this.locatie = locatie;
     }
 
+    public String getHabitat() {
+        return habitat;
+    }
 
+    public void setHabitat(String habitat) {
+        this.habitat = habitat;
+    }
+    
 }

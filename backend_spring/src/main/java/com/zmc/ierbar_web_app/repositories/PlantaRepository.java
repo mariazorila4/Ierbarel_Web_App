@@ -41,7 +41,7 @@ public class PlantaRepository {
         PlantaFactory factory = new PlantaFactory();
         Planta p = factory.creazaPlanta(
                 categorie, rs.getInt("admin_plant_id"), rs.getString("nume_uzual"),
-                rs.getString("denumire_stiintifica"), rs.getString("familie"), rs.getString("descriere"),
+                rs.getString("denumire_stiintifica"), rs.getString("familie"), rs.getString("descriere"), rs.getString("habitat"),
                 rs.getFloat("inaltime_maxima"), rs.getString("perioada_inflorire"), rs.getString("ciclu_de_viata"),
                 tip, rs.getString("locatie"), rs.getString("imagine_url"),
                 rs.getInt("numar_petale"), rs.getString("culoare"), rs.getString("tip_coroana"),
@@ -82,16 +82,16 @@ public class PlantaRepository {
                                    String culoare, String tipCoroana, String tipFrunza, 
                                    boolean pomFructifer, boolean produceFructe, String tipTulpina) {
         
-        String sql = "INSERT INTO plante (nume_uzual, denumire_stiintifica, familie, descriere, inaltime_maxima, " +
+        String sql = "INSERT INTO plante (nume_uzual, denumire_stiintifica, familie, descriere, habitat,inaltime_maxima, " +
                      "perioada_inflorire, poate_fi_uscata, ciclu_de_viata, tip_planta, locatie, categorie_planta, " +
                      "numar_petale, culoare, tip_coroana, tip_frunza, pom_fructifer, produce_fructe, tip_tulpina, " +
                      "admin_plant_id, imagine_url) " +
-                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS tip_planta), ?, CAST(? AS categorie_planta), ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS tip_planta), ?, CAST(? AS categorie_planta), ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
         String categoriePlanta = planta.getClass().getSimpleName().toUpperCase();
         
         jdbcTemplate.update(sql, 
-            planta.getNume_uzual(), planta.getDenumire_stiintifica(), planta.getFamilie(), planta.getDescriere(),
+            planta.getNume_uzual(), planta.getDenumire_stiintifica(), planta.getFamilie(), planta.getDescriere(), planta.getHabitat(),
             planta.getInaltime_maxima(), planta.getPerioada_inflorire(), planta.isPoate_fi_uscata(), 
             planta.getCiclu_de_viata(), planta.getTip_planta().name(), planta.getLocatie(), 
             categoriePlanta, numarPetale, culoare, tipCoroana, tipFrunza, pomFructifer, produceFructe, 
@@ -125,7 +125,7 @@ public class PlantaRepository {
                                    String culoare, String tipCoroana, String tipFrunza, 
                                    boolean pomFructifer, boolean produceFructe, String tipTulpina) {
         
-        String sql = "UPDATE plante SET nume_uzual=?, denumire_stiintifica=?, familie=?, descriere=?, inaltime_maxima=?, " +
+        String sql = "UPDATE plante SET nume_uzual=?, denumire_stiintifica=?, familie=?, descriere=?, habitat=?, inaltime_maxima=?, " +
                      "perioada_inflorire=?, poate_fi_uscata=?, ciclu_de_viata=?, tip_planta=CAST(? AS tip_planta), " +
                      "numar_petale=?, culoare=?, tip_coroana=?, tip_frunza=?, pom_fructifer=?, produce_fructe=?, tip_tulpina=?, " +
                      "categorie_planta=CAST(? AS categorie_planta), locatie=?, imagine_url=? WHERE id=?";
@@ -133,7 +133,7 @@ public class PlantaRepository {
         String categoriePlanta = planta.getClass().getSimpleName().toUpperCase();
         
         jdbcTemplate.update(sql, 
-            planta.getNume_uzual(), planta.getDenumire_stiintifica(), planta.getFamilie(), planta.getDescriere(),
+            planta.getNume_uzual(), planta.getDenumire_stiintifica(), planta.getFamilie(), planta.getDescriere(), planta.getHabitat(),
             planta.getInaltime_maxima(), planta.getPerioada_inflorire(), planta.isPoate_fi_uscata(), 
             planta.getCiclu_de_viata(), planta.getTip_planta().name(), numarPetale, culoare, tipCoroana, tipFrunza, 
             pomFructifer, produceFructe, tipTulpina, categoriePlanta, planta.getLocatie(), imagineUrl, idPlanta

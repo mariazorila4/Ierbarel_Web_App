@@ -59,6 +59,7 @@ public class PlantaService {
         String denumireStiintifica = detaliiAI.getOrDefault("denumire_stiintifica", speciaInRomana + " spp.");
         String familie = detaliiAI.getOrDefault("familie", "Familie Botanică");
         String descriereAI = detaliiAI.getOrDefault("descriere", "Specie identificată automat.");
+        String habitat=detaliiAI.getOrDefault("habitat", "Nespecificat");
         String perioadaInflorire = detaliiAI.getOrDefault("perioada_inflorire", "Nespecificată");
         String cicluViata = detaliiAI.getOrDefault("ciclu_de_viata", "PEREN");
         
@@ -90,6 +91,7 @@ public class PlantaService {
                 denumireStiintifica,                         
                 familie,                    
                 descriereAI,
+                habitat,
                 inaltime, 
                 perioadaInflorire, 
                 cicluViata, 

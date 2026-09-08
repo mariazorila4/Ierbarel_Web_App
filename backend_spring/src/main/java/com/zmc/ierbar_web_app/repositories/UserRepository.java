@@ -107,6 +107,7 @@ public class UserRepository {
             String numeStiintific=rs.getString("denumire_stiintifica");
             String familie=rs.getString("familie");
             String descriere=rs.getString("descriere");
+            String habitat=rs.getString("habitat");
             float inaltimeMaxima=rs.getFloat("inaltime_maxima");
             String perioadaInflorire=rs.getString("perioada_inflorire");
             String cicluDeViata=rs.getString("ciclu_de_viata");
@@ -124,7 +125,7 @@ public class UserRepository {
 
             PlantaFactory plantaFactory = new PlantaFactory();
             Planta p = plantaFactory.creazaPlanta(categoriePlanta, idPlanta, numeUzual, numeStiintific,
-                familie, descriere, inaltimeMaxima, perioadaInflorire, cicluDeViata, tipPlanta, locatie, imagineUrl,
+                familie, descriere, habitat,inaltimeMaxima, perioadaInflorire, cicluDeViata, tipPlanta, locatie, imagineUrl,
                 nrPetale, culoare, tipCoroana, tipFrunza, pomFructifer, produceFructe, tipTulpina, poateFiUscata);
 
             p.setId(idPlanta);
@@ -132,6 +133,7 @@ public class UserRepository {
             p.setDenumire_stiintifica(numeStiintific);
             p.setFamilie(familie);
             p.setDescriere(descriere);
+            p.setHabitat(habitat);
             p.setCategorie_planta(categoriePlanta);
             p.setInaltime_maxima(inaltimeMaxima);
             p.setPerioada_inflorire(perioadaInflorire);
@@ -171,6 +173,7 @@ public class UserRepository {
             String numeStiintific=rs.getString("denumire_stiintifica");
             String familie=rs.getString("familie");
             String descriere=rs.getString("descriere");
+            String habitat=rs.getString("habitat");
             float inaltimeMaxima=rs.getFloat("inaltime_maxima");
             String perioadaInflorire=rs.getString("perioada_inflorire");
             String cicluDeViata=rs.getString("ciclu_de_viata");
@@ -188,7 +191,7 @@ public class UserRepository {
 
             PlantaFactory plantaFactory = new PlantaFactory();
             Planta p = plantaFactory.creazaPlanta(categoriePlanta, idPlanta, numeUzual, numeStiintific,
-                familie, descriere, inaltimeMaxima, perioadaInflorire, cicluDeViata, tipPlanta, locatie, imagineUrl,
+                familie, descriere, habitat, inaltimeMaxima, perioadaInflorire, cicluDeViata, tipPlanta, locatie, imagineUrl,
                 nrPetale, culoare, tipCoroana, tipFrunza, pomFructifer, produceFructe, tipTulpina, poateFiUscata);
 
             p.setId(idPlanta);
@@ -196,6 +199,7 @@ public class UserRepository {
             p.setDenumire_stiintifica(numeStiintific);
             p.setFamilie(familie);
             p.setDescriere(descriere);
+            p.setHabitat(habitat);
             p.setCategorie_planta(categoriePlanta);
             p.setInaltime_maxima(inaltimeMaxima);
             p.setPerioada_inflorire(perioadaInflorire);

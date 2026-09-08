@@ -157,14 +157,25 @@
             <textarea v-model="formPlanta.descriere" rows="4" placeholder="Scrie aici informații despre plantă..." required></textarea>
           </div>
 
-          <div class="grup-input complet">
-            <label>📍 Locație (Unde se găsește?)</label>
-            <input 
-              type="text" 
-              v-model="formPlanta.locatie" 
-              placeholder="ex: Munții Carpați, Europa de Est, Parcul Herăstrău..." 
-              required 
-            />
+          <div class="rand-formular">
+            <div class="grup-input">
+              <label>🏞️ Habitat Natural</label>
+              <input 
+                type="text" 
+                v-model="formPlanta.habitat" 
+                placeholder="ex: Pajiști umede, zăvoaie, păduri de foioase" 
+                required 
+              />
+            </div>
+            <div class="grup-input">
+              <label>📍 Locație (Unde se găsește?)</label>
+              <input 
+                type="text" 
+                v-model="formPlanta.locatie" 
+                placeholder="ex: Munții Carpați, Europa de Est..." 
+                required 
+              />
+            </div>
           </div>
 
           <div class="grup-input complet">
@@ -215,6 +226,7 @@ const formPlanta = ref({
   familie: '',
   perioadaInflorire: '',
   descriere: '',
+  habitat: '',
   locatie: '',
   imagineUrl: '',
   inaltimeMaxima: '',
@@ -263,6 +275,7 @@ const deschideModalEditare = (planta) => {
     familie: planta.familie || '',
     perioadaInflorire: planta.perioada_inflorire || '',
     descriere: planta.descriere || '',
+    habitat: planta.habitat || '',
     locatie: planta.locatie || '',
     imagineUrl: planta.imagineUrl || planta.imagine_url || '',
     inaltimeMaxima: planta.inaltime_maxima || '',
@@ -284,7 +297,7 @@ const deschideModalEditare = (planta) => {
 const resetFormular = () => {
   formPlanta.value = {
     id: null, categoriePlanta: '', nume: '', numeStiintific: '', familie: '', perioadaInflorire: '',
-    descriere: '', locatie: '', imagineUrl: '', inaltimeMaxima: '', poateFiUscata: false, cicluDeViata: 'PEREN',
+    descriere: '', habitat: '', locatie: '', imagineUrl: '', inaltimeMaxima: '', poateFiUscata: false, cicluDeViata: 'PEREN',
     tipPlanta: 'ORNAMENTALA', numarPetale: '', culoare: '', tipCoroana: '', tipFrunza: '',
     pomFructifer: false, produceFructe: false, tipTulpina: ''
   }
@@ -306,6 +319,7 @@ const salveazaPlanta = async () => {
       denumire_stiintifica: formPlanta.value.numeStiintific,
       familie: formPlanta.value.familie,
       descriere: formPlanta.value.descriere,
+      habitat: formPlanta.value.habitat || 'Nespecificat',
       locatie: formPlanta.value.locatie,
       inaltime_maxima: formPlanta.value.inaltimeMaxima ? formPlanta.value.inaltimeMaxima.toString() : "0",
       perioada_inflorire: formPlanta.value.perioadaInflorire,
