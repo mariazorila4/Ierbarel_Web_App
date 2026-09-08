@@ -138,8 +138,10 @@ public class PlantaController {
             String numeUzual = payload.getOrDefault("nume_uzual", "Plantă Scanată").toString().trim();
             String denumireStiintifica = payload.getOrDefault("denumire_stiintifica", "Specie Botanică").toString().trim();
             String descriere = payload.getOrDefault("descriere", "Identificată prin scanare foto.").toString();
+            String habitat = payload.getOrDefault("habitat", "Nespecificat").toString();
             String familie = payload.getOrDefault("familie", "Familie Botanică").toString();
-            String imagineUrl = payload.get("imagine_url") != null ? payload.get("imagine_url").toString() : "";
+            String imagineBruta = payload.get("imagine_url") != null ? payload.get("imagine_url").toString() : "";
+            String imagineUrl = agentAIService.salveazaImagineBase64(imagineBruta);
             String locatie = payload.getOrDefault("locatie", "Nespecificată").toString().trim();
 
             String categorieStr = payload.getOrDefault("categorie_planta", "FLOARE").toString().toUpperCase();
@@ -187,7 +189,7 @@ public class PlantaController {
                 PlantaFactory factory = new PlantaFactory();
                 Planta nouaPlanta = factory.creazaPlanta(
                         categoriePlanta, userId, numeUzual, denumireStiintifica,
-                        familie, descriere, inaltimeMaxima, perioadaInflorire, cicluDeViata, tipPlanta,
+                        familie, descriere, habitat, inaltimeMaxima, perioadaInflorire, cicluDeViata, tipPlanta,
                         locatie, imagineUrl, numarPetale, culoare, tipCoroana, tipFrunza, pomFructifer, produceFructe, tipTulpina, poateFiUscata
                 );
 
@@ -240,13 +242,14 @@ public class PlantaController {
             String denumireStiintifica = datePlanta.get("denumire_stiintifica");
             String familie = datePlanta.get("familie");
             String descriere = datePlanta.get("descriere");
+            String habitat = datePlanta.get("habitat");
             String inaltimeMaxima = datePlanta.get("inaltime_maxima");
             String perioadaInflorire = datePlanta.get("perioada_inflorire");
             String poateFiUscata = datePlanta.get("poate_fi_uscata");
             String cicluDeViata = datePlanta.get("ciclu_de_viata");
             String tipPlanta = datePlanta.get("tip_planta");
             String locatie = datePlanta.get("locatie");
-            String imagineUrl = datePlanta.get("imagine_url");
+            String imagineUrl = agentAIService.salveazaImagineBase64(datePlanta.get("imagine_url"));
             String nrPetale = datePlanta.get("numar_petale");
             String culoare = datePlanta.get("culoare");
             String tipCoroana = datePlanta.get("tip_coroana");
@@ -257,7 +260,7 @@ public class PlantaController {
 
             PlantaFactory factory = new PlantaFactory();
             
-            Planta plantaNoua = factory.creazaPlanta(CategoriePlanta.valueOf(categorie), adminId, numeUzual, denumireStiintifica, familie, descriere,
+            Planta plantaNoua = factory.creazaPlanta(CategoriePlanta.valueOf(categorie), adminId, numeUzual, denumireStiintifica, familie, descriere, habitat,
                             Float.parseFloat(inaltimeMaxima), perioadaInflorire, cicluDeViata, TipPlanta.valueOf(tipPlanta), locatie, imagineUrl,
                             Integer.parseInt(nrPetale), culoare, tipCoroana, tipFrunza, Boolean.parseBoolean(pomFructifer), Boolean.parseBoolean(produceFructe), tipTulpina, Boolean.parseBoolean(poateFiUscata));
             
@@ -265,6 +268,7 @@ public class PlantaController {
             plantaNoua.setDenumire_stiintifica(denumireStiintifica);
             plantaNoua.setFamilie(familie);
             plantaNoua.setDescriere(descriere);
+            plantaNoua.setHabitat(habitat);
             plantaNoua.setInaltime_maxima(Float.parseFloat(inaltimeMaxima));
             plantaNoua.setPerioada_inflorire(perioadaInflorire);
             plantaNoua.setPoate_fi_uscata(Boolean.parseBoolean(poateFiUscata));
@@ -310,8 +314,9 @@ public class PlantaController {
             String denumireStiintifica = datePlanta.get("denumire_stiintifica");
             String familie = datePlanta.get("familie");
             String descriere = datePlanta.get("descriere");
+            String habitat = datePlanta.get("habitat");
             String locatie = datePlanta.get("locatie");
-            String imagineUrl = datePlanta.get("imagine_url");
+            String imagineUrl = agentAIService.salveazaImagineBase64(datePlanta.get("imagine_url"));
             float inaltime = Float.parseFloat(datePlanta.get("inaltime_maxima"));
             String perioadaInflorire = datePlanta.get("perioada_inflorire");
             boolean poateFiUscata = Boolean.parseBoolean(datePlanta.get("poate_fi_uscata"));
@@ -327,7 +332,7 @@ public class PlantaController {
 
             PlantaFactory fabrica = new PlantaFactory();
             Planta plantaActualizata = fabrica.creazaPlanta(CategoriePlanta.valueOf(categorie), id, numeUzual, 
-                    denumireStiintifica, familie, descriere, inaltime, perioadaInflorire, cicluViata, tipPlanta, 
+                    denumireStiintifica, familie, descriere, habitat, inaltime, perioadaInflorire, cicluViata, tipPlanta, 
                     locatie, imagineUrl, nrPetale, culoare, tipCoroana, tipFrunza, pomFructifer, produceFructe, 
                     tipTulpina, poateFiUscata);
 

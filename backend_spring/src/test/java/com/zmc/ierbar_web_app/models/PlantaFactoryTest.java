@@ -18,7 +18,7 @@ public class PlantaFactoryTest {
     public void testCreazaFloare(){
         PlantaFactory factory = new PlantaFactory();
         Planta trandafir = factory.creazaPlanta(
-                CategoriePlanta.FLOARE, 1, "trandafir", "Rosa", "Rosaceae", "O floare parfumata",
+                CategoriePlanta.FLOARE, 1, "trandafir", "Rosa", "Rosaceae", "O floare parfumata", "seră",
                 0.5f, "Primavara", null, TipPlanta.ORNAMENTALA, "Gradina", "http://img.jpg",
                 10, "rosu", null, null, false, false, null, false
         );
@@ -32,7 +32,7 @@ public class PlantaFactoryTest {
     public void testCreazaArbore(){
         PlantaFactory factory = new PlantaFactory();
         Planta stejar = factory.creazaPlanta(
-                CategoriePlanta.ARBORE, 2, "stejar", "Quercus", "Fagaceae", "Un copac mare",
+                CategoriePlanta.ARBORE, 2, "stejar", "Quercus", "Fagaceae", "Un copac mare", "Deal",
                 20.0f, "Primavara", null, TipPlanta.ORNAMENTALA, "Padure", "http://img.jpg",
                 0, null, "Rotunda", "Lobata", true, false, null, false
         );
@@ -46,7 +46,7 @@ public class PlantaFactoryTest {
     public void testCreazaArbust(){
         PlantaFactory factory = new PlantaFactory();
         Planta maces = factory.creazaPlanta(
-                CategoriePlanta.ARBUST, 3, "maces", "Rosa canina", "Rosaceae", "Un arbust cu fructe",
+                CategoriePlanta.ARBUST, 3, "maces", "Rosa canina", "Rosaceae", "Un arbust cu fructe", "Camp",
                 1.5f, "Primavara", null, TipPlanta.COMESTIBILA, "Gradina", "http://img.jpg",
                 0, null, null, null, false, true, null, false
         );
@@ -60,7 +60,7 @@ public class PlantaFactoryTest {
     public void testCreazaIerburi(){
         PlantaFactory factory = new PlantaFactory();
         Planta busuioc = factory.creazaPlanta(
-                CategoriePlanta.IERBURI, 4, "busuioc", "Ocimum basilicum", "Lamiaceae", "O planta aromatica",
+                CategoriePlanta.IERBURI, 4, "busuioc", "Ocimum basilicum", "Lamiaceae", "O planta aromatica", "Gradina",
                 0.3f, "Vara", null, TipPlanta.AROMATICA, "Gradina", "http://img.jpg",
                 0, null, null, null, false, false, "Tulpina moale", true
         );
@@ -75,7 +75,7 @@ public class PlantaFactoryTest {
         PlantaFactory factory = new PlantaFactory();
         Assertions.assertThrows(IllegalArgumentException.class, () -> {
             factory.creazaPlanta(
-                    null, 5, "planta_invalida", "N/A", "N/A", "N/A",
+                    null, 5, "planta_invalida", "N/A", "N/A", "N/A", "N/A",
                     0.0f, "N/A", null, TipPlanta.ORNAMENTALA, "N/A", "N/A",
                     0, null, null, null, false, false, null, false
             );

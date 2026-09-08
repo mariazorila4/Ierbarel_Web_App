@@ -91,10 +91,10 @@
           </div>
 
           <!-- HABITAT NATURAL -->
-          <div v-if="plantaSelectata.locatie && plantaSelectata.locatie !== 'Nespecificată'" class="sectiune-habitat">
+          <div v-if="plantaSelectata.habitat && plantaSelectata.habitat !== 'Nespecificat'" class="sectiune-habitat">
             <hr class="separator-modal" />
             <h4>🌍 Habitat Natural:</h4>
-            <p class="text-habitat">{{ plantaSelectata.locatie }}</p>
+            <p class="text-habitat">{{ plantaSelectata.habitat }}</p>
           </div>
 
           <!-- GALERIE COMUNITATE -->
@@ -429,7 +429,7 @@ const planteFiltrate = computed(() => {
 }
 .btn-inchide:hover { background: #fee; color: #e74c3c; transform: scale(1.1); }
 
-.header-imagine { width: 100%; height: 600px; flex-shrink: 0; background: #f0f0f0; }
+.header-imagine { width: 100%; height: 350px; flex-shrink: 0; background: #f0f0f0; }
 .poza-banner { width: 100%; height: 100%; object-fit: cover; }
 
 .detalii-text { padding: 25px; flex: 1; }

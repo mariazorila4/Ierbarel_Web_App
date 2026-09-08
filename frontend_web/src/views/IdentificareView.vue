@@ -49,7 +49,10 @@
             <div>
               <h3>{{ plantaDetectata.nume_uzual || plantaDetectata.numeUzual }}</h3>
               <p class="stiintific"><em>{{ plantaDetectata.denumire_stiintifica || plantaDetectata.denumireStiintifica }}</em></p>
-              <span v-if="plantaDetectata.familie" class="badge-familie">🌿 {{ plantaDetectata.familie }}</span>
+              <div class="grup-badges">
+                <span v-if="plantaDetectata.familie" class="badge-familie">🌿 {{ plantaDetectata.familie }}</span>
+                <span v-if="plantaDetectata.habitat" class="badge-habitat">🏞️ Habitat: {{ plantaDetectata.habitat }}</span>
+              </div>
             </div>
           </div>
 
@@ -156,10 +159,16 @@ const previzualizeazaImagine = (event) => {
 const prelucreazaFisier = (fisier) => {
   if (fisier && fisier.type.startsWith('image/')) {
     imagineSelectata.value = fisier
-    previewUrl.value = URL.createObjectURL(fisier)
     plantaDetectata.value = null
     esteSalvataInIerbar.value = false
     locatieGasita.value = ''
+
+    // În loc de blob:, folosim FileReader pentru a genera Base64
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      previewUrl.value = e.target.result
+    }
+    reader.readAsDataURL(fisier)
   }
 }
 
@@ -215,6 +224,7 @@ const salveazaInIerbar = async () => {
       denumire_stiintifica: plantaDetectata.value.denumire_stiintifica || plantaDetectata.value.denumireStiintifica || 'Specie Botanică',
       familie: plantaDetectata.value.familie || 'Familie Botanică',
       descriere: plantaDetectata.value.descriere || 'Identificată prin scanare foto.',
+      habitat: plantaDetectata.value.habitat || 'Nespecificat',
       imagine_url: imgBase64,
       locatie: locatieGasita.value || 'Nespecificată',
       categorie_planta: plantaDetectata.value.categorie_planta || plantaDetectata.value.categorie || 'FLOARE',
@@ -285,7 +295,11 @@ const salveazaInIerbar = async () => {
 .rezultat-header { display: flex; align-items: center; gap: 15px; }
 .icon-rezultat { font-size: 2.2rem; }
 .stiintific { color: #777; margin: 3px 0 0 0; }
-.badge-familie { display: inline-block; font-size: 0.8rem; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 10px; margin-top: 4px; font-weight: bold; }
+
+.grup-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.badge-familie { display: inline-block; font-size: 0.8rem; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 10px; font-weight: bold; }
+.badge-habitat { display: inline-block; font-size: 0.8rem; background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 10px; font-weight: bold; }
+
 .descriere-rezultat { color: #444; line-height: 1.5; margin: 15px 0; font-size: 0.95rem; }
 
 /* Grup Salvare + Harta */

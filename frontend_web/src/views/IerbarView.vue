@@ -58,7 +58,7 @@
             <p><strong>🌸 Înflorire:</strong> {{ plantaSelectata.perioada_inflorire || (plantaSelectata.planta && plantaSelectata.planta.perioada_inflorire) || 'Primăvară-Vară' }}</p>
             <p><strong>🌱 Ciclu de viață:</strong> {{ plantaSelectata.ciclu_de_viata || (plantaSelectata.planta && plantaSelectata.planta.ciclu_de_viata) || 'PEREN' }}</p>
             <p><strong>🏷️ Tip plantă:</strong> {{ plantaSelectata.tip_planta || (plantaSelectata.planta && plantaSelectata.planta.tip_planta) || 'ORNAMENTALA' }}</p>
-            <p><strong>📏 Înălțime max:</strong> {{ plantaSelectata.inaltime_maxima || (plantaSelectata.planta && plantaSelectata.planta.inaltime_maxima) || 30 }} metri</p>
+            <p><strong>📏 Înălțime max:</strong> {{ plantaSelectata.inaltime_maxima || (plantaSelectata.planta && plantaSelectata.planta.inaltime_maxima) || 0.5 }} metri</p>
           </div>
 
           <div class="sectiune-descriere">
@@ -66,11 +66,18 @@
             <p>{{ plantaSelectata.descriere || (plantaSelectata.planta && plantaSelectata.planta.descriere) || 'Exemplar din colecția ta personală.' }}</p>
           </div>
 
+          <!-- HABITAT NATURAL (PENTRU TOATE PLANTELE) -->
+          <div v-if="plantaSelectata.habitat || (plantaSelectata.planta && plantaSelectata.planta.habitat)" class="sectiune-habitat">
+            <hr class="separator-modal" />
+            <h4>🌍 Habitat Natural:</h4>
+            <p class="text-habitat">{{ plantaSelectata.habitat || plantaSelectata.planta.habitat }}</p>
+          </div>
+
           <!-- DETALII SCANARE PERSONALĂ & BUTON DE PUBLICARE GLOBALĂ -->
           <div v-if="plantaSelectata.esteScanata" class="sectiune-personal-info">
             <hr class="separator-modal" />
             <h4>📍 Detaliile Capturii Tale:</h4>
-            <p><strong>Locație:</strong> {{ plantaSelectata.locatie || 'Nespecificată' }}</p>
+            <p><strong>Locație specifică:</strong> {{ plantaSelectata.locatie || 'Nespecificată' }}</p>
             <p><strong>Data scanării:</strong> {{ formateazaData(plantaSelectata.dataAdaugarii) }}</p>
 
             <div class="actiuni-captura-modal">
@@ -85,13 +92,6 @@
                 ✅ Această fotografie este publică în Galeria Globală
               </div>
             </div>
-          </div>
-
-          <!-- HABITAT NATURAL (PENTRU PLANTE SALVATE DIN CATALOG) -->
-          <div v-if="!plantaSelectata.esteScanata && (plantaSelectata.locatie || (plantaSelectata.planta && plantaSelectata.planta.locatie))" class="sectiune-habitat">
-            <hr class="separator-modal" />
-            <h4>🌍 Habitat Natural:</h4>
-            <p class="text-habitat">{{ plantaSelectata.locatie || plantaSelectata.planta.locatie }}</p>
           </div>
 
           <!-- BUTON POP-UP GALERIE (PENTRU PLANTELE SALVATE DIN CATALOG) -->
@@ -110,7 +110,6 @@
     <div v-if="arataHartaPublicare" class="modal-overlay z-top" @click.self="arataHartaPublicare = false">
       <div class="modal-content-locatie">
         <button class="btn-inchide" @click="arataHartaPublicare = false">✖</button>
-        <!-- Aici am integrat componenta ta SelectorLocatie care centrează fix ca la Bolt -->
         <SelectorLocatie @locatie-selectata="confirmaPublicareCuHarta" />
       </div>
     </div>
@@ -189,6 +188,7 @@ const incarcaIerbarulPersonal = async () => {
           denumire_stiintifica: c.planta?.denumire_stiintifica || '',
           familie: c.planta?.familie || 'Asteraceae',
           descriere: c.planta?.descriere || 'Proaspăt scanată',
+          habitat: c.planta?.habitat || 'Nespecificat',
           perioada_inflorire: c.planta?.perioada_inflorire,
           ciclu_de_viata: c.planta?.ciclu_de_viata,
           tip_planta: c.planta?.tip_planta,
@@ -240,44 +240,34 @@ const inchideDetalii = () => {
   document.body.style.overflow = 'auto'
 }
 
-// ==========================================
-// 💡 LOGICA INTELIGENTĂ DE PUBLICARE
-// ==========================================
-
 const incepeProcesPublicare = async (captura) => {
   capturaDePublicat.value = captura
   const areLocatieCurenta = captura.locatie && captura.locatie !== 'Nespecificată' && captura.locatie.trim() !== ''
 
   if (areLocatieCurenta) {
-    // 1. Dacă ARE locație -> Întrebăm userul ce vrea să facă
     const vreaSaPubliceDirect = await notificare({
       titlu: "Confirmare Locație",
       mesaj: `Planta are deja setată locația: "${captura.locatie}".\nDorești să o publici așa? (Dacă apeși Anulează, vei putea alege altă locație pe hartă).`,
       tip: "info",
-      esteConfirmare: true // Returnează true dacă dă "OK", false dacă dă "Anulează"
+      esteConfirmare: true
     })
 
     if (vreaSaPubliceDirect) {
-      // 1.a. Apasă OK -> Publică direct fără hartă
       await executaPublicarea(captura.locatie)
     } else {
-      // 1.b. Apasă Anulează -> Deschide Harta să modifice
       arataHartaPublicare.value = true
     }
   } else {
-    // 2. Dacă NU ARE locație -> Trimis direct la hartă
     arataHartaPublicare.value = true
   }
 }
 
-// Metoda apelată când utilizatorul confirmă locația de pe harta din Modal
 const confirmaPublicareCuHarta = async (dateLocatie) => {
   arataHartaPublicare.value = false
   const locatieFinala = dateLocatie.adresa.trim() !== '' ? dateLocatie.adresa.trim() : 'Nespecificată'
   await executaPublicarea(locatieFinala)
 }
 
-// Metoda finală care comunică cu Backend-ul
 const executaPublicarea = async (adresaFinala) => {
   if (!capturaDePublicat.value) return
   const me = capturaDePublicat.value
@@ -291,7 +281,6 @@ const executaPublicarea = async (adresaFinala) => {
       { headers: { 'Authorization': `Bearer ${token}` } }
     )
 
-    // Actualizare vizuală în interfață pe loc
     me.este_publica = true
     me.estePublica = true
     me.locatie = adresaFinala
@@ -312,8 +301,6 @@ const executaPublicarea = async (adresaFinala) => {
     capturaDePublicat.value = null
   }
 }
-
-// ==========================================
 
 const formateazaData = (dataStr) => {
   if (!dataStr) return 'Recent'
@@ -392,7 +379,7 @@ const stergePlanta = async (planta) => {
 .modal-content::-webkit-scrollbar-thumb { background-color: var(--verde-deschis); border-radius: 10px; }
 
 .btn-inchide { position: absolute; top: 15px; right: 15px; background: rgba(255, 255, 255, 0.9); border: none; border-radius: 50%; width: 36px; height: 36px; font-size: 1.2rem; cursor: pointer; z-index: 10; display: flex; justify-content: center; align-items: center; }
-.header-imagine { width: 100%; height: 600px; flex-shrink: 0; background: #f0f0f0; }
+.header-imagine { width: 100%; height: 350px; flex-shrink: 0; background: #f0f0f0; }
 .poza-banner { width: 100%; height: 100%; object-fit: cover; }
 .detalii-text { padding: 25px; flex: 1; }
 .nume-mare { margin: 0; color: var(--verde-inchis); font-size: 2rem; }

@@ -24,6 +24,11 @@ import com.zmc.ierbar_web_app.models.user.MesajChat;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import com.cloudinary.Cloudinary;
+import com.cloudinary.utils.ObjectUtils;
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Value;
+
 @Service
 public class AgentAIService {
     private final JdbcTemplate jdbcTemplate;
@@ -35,6 +40,25 @@ public class AgentAIService {
 
     @Value("${plantnet.api.key:}")
     private String plantnetApiKey;
+
+    @Value("${cloudinary.cloud-name}")
+    private String cloudName;
+
+    @Value("${cloudinary.api-key}")
+    private String cloudApiKey;
+
+    @Value("${cloudinary.api-secret}")
+    private String cloudApiSecret;
+
+    private Cloudinary cloudinary;
+
+    @PostConstruct
+    public void initCloudinary() {
+        cloudinary = new Cloudinary(ObjectUtils.asMap(
+                "cloud_name", cloudName,
+                "api_key", cloudApiKey,
+                "api_secret", cloudApiSecret));
+    }
 
     public AgentAIService(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
         this.jdbcTemplate = jdbcTemplate;
@@ -138,11 +162,30 @@ public class AgentAIService {
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+        int maxIncercari = 3;
+        int incercare = 0;
 
-        JsonNode root = objectMapper.readTree(response.getBody());
-        return root.path("candidates").get(0).path("content")
-                .path("parts").get(0).path("text").asText();
+        while (true) {
+            try {
+                ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+                JsonNode root = objectMapper.readTree(response.getBody());
+                return root.path("candidates").get(0).path("content")
+                        .path("parts").get(0).path("text").asText();
+
+            } catch (Exception e) {
+                incercare++;
+                boolean esteEroareTemporara = e.getMessage() != null && 
+                        (e.getMessage().contains("503") || e.getMessage().contains("429"));
+
+                if (esteEroareTemporara && incercare < maxIncercari) {
+                    System.out.println("⚠️ Serverul Gemini este ocupat (503/429). Reîncercăm automat (" 
+                            + incercare + "/" + maxIncercari + ") în 2 secunde...");
+                    Thread.sleep(2000); // Pauză de 2 secunde între încercări
+                } else {
+                    throw e; // Dacă s-au epuizat încercările sau e o eroare diferită (ex: 400 Bad Request)
+                }
+            }
+        }
     }
 
     public Map<String, String> genereazaDetaliiBotanice(String numeSpecie) {
@@ -150,6 +193,7 @@ public class AgentAIService {
             String prompt = "Ești un expert botanist. Generează fișa tehnică detaliată pentru planta cu denumirea: '" + numeSpecie + "'. " +
                     "Răspunde STRICT sub formă de JSON cu următoarele chei și folosește exclusiv limba română: " +
                     "\"nume_uzual\", \"denumire_stiintifica\", \"familie\", \"descriere\" (maxim 2 fraze captivante), " +
+                    "\"habitat\" (zona/mediul natural unde crește, ex: pajiști umede, margini de pădure, zăvoaie, grădini), " +
                     "\"categorie_planta\" (alege strict una din: FLOARE, ARBORE, ARBUST, IERBURI, FERIGA, MUSCHI, ALTA), " +
                     "\"tip_planta\" (alege strict una din: ORNAMENTALA, MEDICINALA, AROMATICA, TOXICA, FRUCTIFERA, CARNIVORA, ALTA), " +
                     "\"inaltime_maxima\" (doar cifre, ex: 0.5), \"perioada_inflorire\", \"ciclu_de_viata\" (PEREN, ANUAL, BIENAL), " +
@@ -180,6 +224,7 @@ public class AgentAIService {
                 "denumire_stiintifica", numeSpecie + " spp.",
                 "familie", "Necunoscută",
                 "descriere", "O plantă interesantă din natură.",
+                "habitat", "Nespecificat",
                 "categorie_planta", "FLOARE",
                 "tip_planta", "ORNAMENTALA"
             );
@@ -205,6 +250,23 @@ public class AgentAIService {
         } catch (Exception e) {
             System.err.println("Eroare la generarea curiozității pentru " + numePlanta + ": " + e.getMessage());
             return "Planta " + numePlanta + " are proprietăți adaptative uimitoare și joacă un rol esențial în ecosistemul său.";
+        }
+    }
+
+    // ==============================================================
+    // 💾 SALVARE IMAGINI BASE64 PE CLOUDINARY
+    // ==============================================================
+    public String salveazaImagineBase64(String base64Image) {
+        try {
+            if (base64Image == null || base64Image.trim().isEmpty()) return "";
+            if (base64Image.startsWith("http")) return base64Image; // Este deja un URL extern
+
+            // Încarcă direct Base64 pe Cloudinary și returnează URL-ul HTTPS public
+            Map uploadResult = cloudinary.uploader().upload(base64Image, ObjectUtils.emptyMap());
+            return uploadResult.get("secure_url").toString(); 
+        } catch (Exception e) {
+            System.err.println("Eroare la upload pe Cloudinary: " + e.getMessage());
+            return "";
         }
     }
 }
